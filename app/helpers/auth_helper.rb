@@ -60,10 +60,13 @@ module AuthHelper
   def valid_dataset
     return unless (datasets = session.dig(:user, :info, DATASET_NAME.to_sym)).present?
 
-    datasets.filter { |x| ID_REGEX.match?(x[:id]) }
-            .filter { |x| DateTime.now < DateTime.parse(x[:expires_at]) }
-            .sort_by { |x| DateTime.parse(x[:expires_at]) }
-            .last
+    @valid_dataset ||= begin
+                         datasets = [datasets] unless datasets.is_a?(Array)
+                         datasets.filter { |x| ID_REGEX.match?(x[:id]) }
+                                 .filter { |x| DateTime.now < DateTime.parse(x[:expires_at]) }
+                                 .sort_by { |x| DateTime.parse(x[:expires_at]) }
+                                 .last
+                       end
   rescue => e
     Rails.logger.error('valid_dataset') { e }
     nil
