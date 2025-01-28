@@ -53,6 +53,7 @@ group :development do
   gem 'binding_of_caller'
   gem 'foreman'
   gem 'listen', '~> 3.3'
+  gem 'rack-rewrite', require: 'rack/rewrite'
   gem "rack-reverse-proxy", require: "rack/reverse_proxy"
   gem 'spring'
   gem 'spring-watcher-listen', '~> 2.0.0'
