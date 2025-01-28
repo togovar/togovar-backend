@@ -55,8 +55,9 @@ module API
     def search_params
       @search_params ||= begin
                            query = if request.get?
-                                     params.permit :term, :quality, :debug, :offset, :limit,
-                                                   dataset: {}, frequency: {}, type: {}, significance: {}, consequence: {}, sift: {}, polyphen: {}, alphamissense: {}, column: {}
+                                     params.permit :term, :quality, :limit, :offset, :debug,
+                                                   dataset: {}, frequency: {}, type: {}, significance: {}, consequence: {},
+                                                   sift: {}, polyphen: {}, alphamissense: {}, column: {}
                                    else
                                      if params.key?(:query)
                                        params.permit query: {}, column: []
@@ -127,7 +128,6 @@ module API
         loop do
           params = search_params
           params[:offset] = params[:body][:offset] = offset if offset.present?
-          params[:limit] = params[:body][:limit] = 1_000
 
           service = if request.get?
                       VariationSearchService::QueryParameters.new(params, user: current_user)
