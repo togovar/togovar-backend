@@ -17,9 +17,11 @@ class VariationSearchService
 
     def to_json(*)
       Jbuilder.new do |json|
-        scroll(json)
-        statistics(json) if @result[:aggs]
-        data(json) if @result[:results]
+        unless @param[:formatter] == 'jogo'
+          scroll(json)
+          statistics(json)
+        end
+        data(json)
 
         json.error @error if @error.present?
         json.warning @warning if @warning.present?
@@ -233,34 +235,37 @@ class VariationSearchService
           json.significance significance.sort(&CONDITIONS_COMPARATOR)
         end
 
-        vep = Array(variant[:vep])
-        json.most_severe_consequence SequenceOntology.most_severe_consequence(*vep.flat_map { |x| x[:consequence] })&.id
-        json.sift variant[:sift]
-        json.polyphen variant[:polyphen]&.negative? ? 'Unknown' : variant[:polyphen]
-        json.alphamissense variant[:alphamissense]
-        vep.each do |x|
-          consequences = x[:consequence].map { |key| SequenceOntology.find_by_key(key) }
-          x[:consequence] = (SequenceOntology::CONSEQUENCES_IN_ORDER & consequences).map { |y| y.id }
-        end
-        json.transcripts vep.map(&:compact).presence
-
-        frequencies = Array(variant[:frequency]).filter_map do |x|
-          # TODO: remove if dataset renamed
-          x[:source] = 'jga_wes' if x[:source] == 'jga_ngs'
-          if (m = x[:source].match(/^(bbj_riken\.mpheno\d+)\.all$/))
-            x[:source] = m[1]
+        if (vep = Array(variant[:vep])).present?
+          json.most_severe_consequence SequenceOntology.most_severe_consequence(*vep.flat_map { |x| x[:consequence] })&.id
+          json.sift variant[:sift]
+          json.polyphen variant[:polyphen]&.negative? ? 'Unknown' : variant[:polyphen]
+          json.alphamissense variant[:alphamissense]
+          vep.each do |x|
+            consequences = x[:consequence].map { |key| SequenceOntology.find_by_key(key) }
+            x[:consequence] = (SequenceOntology::CONSEQUENCES_IN_ORDER & consequences).map { |y| y.id }
           end
-
-          next unless accessible_datasets.include?(x[:source].to_sym)
-
-          if x[:af].blank? && x[:ac].present? && x[:an].present?
-            x[:af] = Float(x[:ac]) / Float(x[:an])
-          end
-
-          x.compact.sort.to_h
+          json.transcripts vep.map(&:compact).presence
         end
 
-        json.frequencies frequencies
+        if (f = Array(variant[:frequency])).present?
+          frequencies = f.filter_map do |x|
+            # TODO: remove if dataset renamed
+            x[:source] = 'jga_wes' if x[:source] == 'jga_ngs'
+            if (m = x[:source].match(/^(bbj_riken\.mpheno\d+)\.all$/))
+              x[:source] = m[1]
+            end
+
+            next unless accessible_datasets.include?(x[:source].to_sym)
+
+            if x[:af].blank? && x[:ac].present? && x[:an].present?
+              x[:af] = Float(x[:ac]) / Float(x[:an])
+            end
+
+            x.compact.sort.to_h
+          end
+
+          json.frequencies frequencies
+        end
       end
     end
   end
