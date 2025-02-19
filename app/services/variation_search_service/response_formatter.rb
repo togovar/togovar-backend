@@ -19,9 +19,9 @@ class VariationSearchService
       Jbuilder.new do |json|
         unless @param[:formatter] == 'jogo'
           scroll(json)
-          statistics(json)
+          statistics(json) if @result.key?(:aggs)
         end
-        data(json)
+        data(json) if @result.key?(:results)
 
         json.error @error if @error.present?
         json.warning @warning if @warning.present?
