@@ -241,16 +241,26 @@ module API
       alpha_misssense = vep.map { |x| x[:alpha_misssense] }.compact.max
 
       conditions = Hash.new { |hash, key| hash[key] = Disease.find(key).results.first&.dig('_source', 'name') }
-      condition = Array(result.dig(:clinvar, :conditions)).map do |x|
+      condition = Array(result.dig(:conditions)).map do |x|
         {
-          conditions: Array(x[:medgen]).map { |v| { name: conditions[v] || CLINVAR_CONDITION_NOT_PROVIDED, medgen: v } },
-          interpretations: Array(x[:interpretation]).filter_map { |y| ClinicalSignificance.find_by_id(y.tr(',', '').tr(' ', '_').to_sym)&.label },
-          submission_count: x[:submission_count]
+          source: x[:source],
+          id: x[:id],
+          condition: Array(x[:condition]).map do |y|
+            {
+              medgen: Array(y[:medgen]).map { |v| { name: conditions[v] || CLINVAR_CONDITION_NOT_PROVIDED, medgen: v } },
+              pref_name: y[:pref_name],
+              classification: Array(y[:classification]).filter_map { |v| ClinicalSignificance.find_by_id(v.tr(',', '').tr(' ', '_').to_sym)&.label },
+              submission_count: y[:submission_count]
+            }.compact
+          end
         }
       end
       if type == :csv
-        condition = condition.map { |x| "#{x[:conditions].map { |y| y[:name] || '-' }.join('|')}=#{x[:interpretations].join('|').presence || '-'}" }
-                             .join(ITEMS_SEPARATOR)
+        condition = condition.flat_map do |x|
+          x[:condition].map do |y|
+            "#{x[:source]}:#{y[:medgen].filter_map { |v| v[:name].presence }.flatten.uniq.join('|')}=#{Array(y[:classification]).join('|').presence || '-'}"
+          end
+        end.join(ITEMS_SEPARATOR)
       end
 
       columns = output_columns
