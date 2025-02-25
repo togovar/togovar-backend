@@ -198,44 +198,45 @@ class VariationSearchService
           json.external_link external_link
         end
 
-        significance = Array(variant[:conditions]).flat_map do |condition|
-          # TODO: remove on 2025.1
-          if condition[:source] == "mgend" && condition[:condition].blank?
-            if (f = Rails.root.join('tmp', 'mgend.vcf.gz')).exist? &&
-              (r = `zgrep '#{condition[:id]}' #{f}`).present? &&
-              (info = r.split("\n").first.split("\t")[7]).present? &&
-              (cond = info.match(/CONDITIONS=([^;]+)/)&.captures).present?
+        if variant.key?(:conditions)
+          significance = Array(variant[:conditions]).flat_map do |condition|
+            # TODO: remove on 2025.1
+            if condition[:source] == "mgend" && condition[:condition].blank?
+              if (f = Rails.root.join('tmp', 'mgend.vcf.gz')).exist? &&
+                (r = `zgrep '#{condition[:id]}' #{f}`).present? &&
+                (info = r.split("\n").first.split("\t")[7]).present? &&
+                (cond = info.match(/CONDITIONS=([^;]+)/)&.captures).present?
 
-              condition[:condition] = cond[0].split("|").filter_map do |x|
-                next if (cs = x.split(":")[2]).blank?
+                condition[:condition] = cond[0].split("|").filter_map do |x|
+                  next if (cs = x.split(":")[2]).blank?
 
-                { classification: [cs.downcase.gsub(',', '').gsub(' ', '_')] }
+                  { classification: [cs.downcase.gsub(',', '').gsub(' ', '_')] }
+                end
               end
+            end
+
+            (condition[:condition].presence || [{}]).map do |x|
+              {
+                conditions: if x[:medgen].present?
+                              Array(x[:medgen]).sort(&MEDGEN_COMPARATOR)
+                                               .map { |v| { name: conditions[v] || CLINVAR_CONDITION_NOT_PROVIDED, medgen: v } }
+                            elsif x[:pref_name].present?
+                              Array(x[:pref_name]).map { |v| { name: v } }
+                            else
+                              []
+                            end,
+                interpretations: Array(x[:classification]).filter_map { |y| ClinicalSignificance.find_by_id(y.tr(',', '').tr(' ', '_').to_sym)&.key },
+                submission_count: x[:submission_count],
+                source: condition[:source]
+              }
             end
           end
 
-          (condition[:condition].presence || [{}]).map do |x|
-            {
-              conditions: if x[:medgen].present?
-                            Array(x[:medgen]).sort(&MEDGEN_COMPARATOR)
-                                             .map { |v| { name: conditions[v] || CLINVAR_CONDITION_NOT_PROVIDED, medgen: v } }
-                          elsif x[:pref_name].present?
-                            Array(x[:pref_name]).map { |v| { name: v } }
-                          else
-                            []
-                          end,
-              interpretations: Array(x[:classification]).filter_map { |y| ClinicalSignificance.find_by_id(y.tr(',', '').tr(' ', '_').to_sym)&.key },
-              submission_count: x[:submission_count],
-              source: condition[:source]
-            }
-          end
-        end
-
-        if significance.present?
           json.significance significance.sort(&CONDITIONS_COMPARATOR)
         end
 
-        if (vep = Array(variant[:vep])).present?
+        if variant.key?(:vep)
+          vep = Array(variant[:vep])
           json.most_severe_consequence SequenceOntology.most_severe_consequence(*vep.flat_map { |x| x[:consequence] })&.id
           json.sift variant[:sift]
           json.polyphen variant[:polyphen]&.negative? ? 'Unknown' : variant[:polyphen]
@@ -247,8 +248,8 @@ class VariationSearchService
           json.transcripts vep.map(&:compact).presence
         end
 
-        if (f = Array(variant[:frequency])).present?
-          frequencies = f.filter_map do |x|
+        if variant.key?(:frequency)
+          frequencies = Array(variant[:frequency]).filter_map do |x|
             # TODO: remove if dataset renamed
             x[:source] = 'jga_wes' if x[:source] == 'jga_ngs'
             if (m = x[:source].match(/^(bbj_riken\.mpheno\d+)\.all$/))
