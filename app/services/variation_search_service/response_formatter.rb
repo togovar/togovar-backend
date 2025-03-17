@@ -58,10 +58,15 @@ class VariationSearchService
     end
 
     def dataset(json)
-      json.dataset do
-        aggs = @result[:aggs]
-        datasets = Array(aggs.dig(:frequency, :source, :buckets)).concat(Array(aggs.dig(:condition, :source, :buckets)))
+      aggs = @result[:aggs]
+      datasets = Array(aggs.dig(:frequency, :source, :buckets)).concat(Array(aggs.dig(:condition, :source, :buckets)))
 
+      # Ensure dataset key
+      accessible_datasets.each do |x|
+        datasets << { key: x.to_s, doc_count: 0 } unless datasets.find { |dataset| dataset[:key] == x.to_s }
+      end
+
+      json.dataset do
         datasets.each do |x|
           # TODO: remove if dataset renamed
           key = x[:key] == 'jga_ngs' ? 'jga_wes' : x[:key]
@@ -72,29 +77,50 @@ class VariationSearchService
     end
 
     def type(json)
+      types = Array(@result[:aggs].dig(:type, :buckets))
+
+      # Ensure type key
+      SequenceOntology::VariationClass.constants.each do |sym|
+        next unless (label = SequenceOntology::VariationClass.const_get(sym)&.label)
+        types << { key: label.to_s, doc_count: 0 } unless types.find { |x| x[:key] == x.to_s }
+      end
+
       json.type do
-        Array(@result[:aggs].dig(:type, :buckets)).each do |x|
+        types.each do |x|
           json.set! SequenceOntology.find_by_label(x[:key])&.id, x[:doc_count]
         end
       end
     end
 
     def significance(json)
+      significances = Array(@result[:aggs].dig(:conditions_condition, :classification, :buckets))
+
+      # Ensure significance key
+      ClinicalSignificance.all.map(&:id).each do |id|
+        significances << { key: id.to_s, doc_count: 0 } unless significances.find { |x| x[:key] == id.to_s }
+      end
+
       json.significance do
-        unless (c = @result[:count_condition_absence]).zero?
-          json.set! 'NC', c
-        end
-        Array(@result[:aggs].dig(:conditions_condition, :classification, :buckets)).each do |x|
+        significances.each do |x|
           if (s = ClinicalSignificance.find_by_id(x[:key].tr(',', '').tr(' ', '_')))
             json.set! s.key, x[:doc_count]
           end
         end
+
+        json.set! 'NC', (c = @result[:count_condition_absence])&.positive? ? c : 0
       end
     end
 
     def consequence(json)
+      consequences = Array(@result[:aggs].dig(:vep, :consequence, :buckets))
+
+      # Ensure consequence key
+      SequenceOntology::CONSEQUENCES_IN_ORDER.map(&:key).each do |key|
+        consequences << { key: key.to_s, doc_count: 0 } unless consequences.find { |x| x[:key] == key.to_s }
+      end
+
       json.consequence do
-        Array(@result[:aggs].dig(:vep, :consequence, :buckets)).each do |x|
+        consequences.each do |x|
           if (c = SequenceOntology.find_by_key(x[:key]))
             json.set! c.id, x[:doc_count]
           end
