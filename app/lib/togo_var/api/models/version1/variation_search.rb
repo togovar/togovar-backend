@@ -42,6 +42,16 @@ module TogoVar
             when Array
               errors.add(:offset, 'must consist of at least 2 elements [chrom(index), pos]') if offset.size < 2
               errors.add(:offset, 'must consist of at most 4 elements [chrom(index), pos, ref, alt]') if offset.size > 4
+
+              case offset[0].to_s
+              when /(chr)?X/
+                offset[0] = 23
+              when /(chr)?Y/
+                offset[0] = 24
+              when /(chr)?MT/
+                offset[0] = 25
+              end
+
               begin
                 Integer(offset[0])
                 Integer(offset[1])
