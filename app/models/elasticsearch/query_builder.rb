@@ -580,10 +580,22 @@ module Elasticsearch
     def gene_condition(term)
       query = Elasticsearch::DSL::Search.search do
         query do
-          nested do
-            path :'vep'
-            query do
-              terms 'vep.hgnc_id': Array(term)
+          bool do
+            must do
+              nested do
+                path 'vep'
+                query do
+                  terms 'vep.hgnc_id': Array(term)
+                end
+              end
+            end
+            must do
+              nested do
+                path :'vep.symbol'
+                query do
+                  match 'vep.symbol.source': 'HGNC'
+                end
+              end
             end
           end
         end

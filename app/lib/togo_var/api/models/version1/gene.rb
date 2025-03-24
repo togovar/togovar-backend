@@ -12,10 +12,22 @@ module TogoVar
 
             q = Elasticsearch::DSL::Search.search do
               query do
-                nested do
-                  path 'vep'
-                  query do
-                    terms 'vep.hgnc_id': terms
+                bool do
+                  must do
+                    nested do
+                      path 'vep'
+                      query do
+                        terms 'vep.hgnc_id': terms
+                      end
+                    end
+                  end
+                  must do
+                    nested do
+                      path :'vep.symbol'
+                      query do
+                        match 'vep.symbol.source': 'HGNC'
+                      end
+                    end
                   end
                 end
               end

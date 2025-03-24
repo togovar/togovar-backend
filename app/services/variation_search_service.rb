@@ -36,12 +36,14 @@ class VariationSearchService
       params.merge!(body)
     end
 
+    gene_order = extract_query_gene(params[:query])
+
     if params[:formatter] == 'html'
       HtmlFormatter.new(params, search, user: @options[:user]).to_hash
     elsif params[:formatter] == 'jogo'
       ResponseFormatter.new(params, search_all, @errors, user: @options[:user]).to_hash
     else
-      ResponseFormatter.new(params, search, @errors, user: @options[:user]).to_hash
+      ResponseFormatter.new(params, search, @errors, user: @options[:user], gene_order: ).to_hash
     end
   end
 
@@ -213,5 +215,21 @@ class VariationSearchService
 
                       hash.tap { |h| debug[:stat_query] = h if @options[:debug] }
                     end
+  end
+
+  def extract_query_gene(obj)
+    if obj.is_a?(Hash) && obj.key?('gene')
+      if obj.dig('gene', 'relation') == 'eq'
+        Array(obj.dig('gene', 'terms'))
+      else
+        []
+      end
+    elsif obj.is_a?(Hash)
+      obj.values.map { |v| extract_query_gene(v) }
+    elsif obj.is_a?(Array)
+      obj.map { |o| extract_query_gene(o) }
+    else
+      []
+    end.flatten.sort.uniq
   end
 end

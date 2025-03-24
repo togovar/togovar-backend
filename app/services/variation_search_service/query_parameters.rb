@@ -24,7 +24,9 @@ class VariationSearchService
 
     # @return [Hash]
     def execute
-      ResponseFormatter.new(param, search, @error, @warning, @notice, user: @options[:user]).to_hash
+      gene_order = (gene = Gene.exact_match(param.term)) ? [gene[:hgnc_id]] : []
+
+      ResponseFormatter.new(param, search, @error, @warning, @notice, user: @options[:user], gene_order:).to_hash
     end
 
     def query

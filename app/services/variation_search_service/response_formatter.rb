@@ -190,11 +190,26 @@ class VariationSearchService
           json.existing_variations dbsnp
         end
 
+        gene_comparator = proc do |a, b|
+          ordering = Array(@options[:gene_order])
+
+          if [a[:id], b[:id]].all? { |x| ordering.include?(x) }
+            ordering.find_index(a[:id]) <=> ordering.find_index(b[:id])
+          elsif ordering.include?(a[:id])
+            -1
+          elsif ordering.include?(b[:id])
+            1
+          else
+            a[:name] <=> b[:name]
+          end
+        end
+
         symbols = Array(variant[:vep])
-                    .filter { |x| x.dig(:symbol, :source) == 'HGNC' && x[:hgnc_id] }
+                    .filter { |x| x.dig(:symbol, :source) == 'HGNC' && x[:hgnc_id].present? }
                     .map { |x| { name: x.dig(:symbol, :label), id: x[:hgnc_id] } }
                     .uniq
                     .map { |x| { name: x[:name], id: x[:id], synonyms: synonyms[x[:id]] }.compact }
+                    .sort(&gene_comparator)
 
         if symbols.present?
           json.symbols symbols
