@@ -14,21 +14,24 @@ class ResolveController < ApplicationController
         elsif result.size > 1 || (result.size == 1 && result[0].blank?)
           redirect_to "/?#{search_query_parameters}", status: :see_other
         else
-          redirect_to '/404.html'
+          redirect_to '/404.html', status: :not_found
         end
+      rescue StandardError
+        redirect_to '/500.html', status: :internal_server_error
       end
+
       format.json do
         result = resolve_variant.compact_blank
 
         status = if result.size.zero?
                    :not_found
-                 elsif result.size > 1
-                   :multiple_choices
                  else
                    :ok
                  end
 
         render json: { query: params[:id], result: }, status:
+      rescue StandardError => e
+        render json: { error: e.message }, status: :internal_server_error
       end
     end
   end
@@ -48,7 +51,10 @@ class ResolveController < ApplicationController
         else
           redirect_to '/404.html'
         end
+      rescue StandardError
+        redirect_to '/500.html', status: :internal_server_error
       end
+
       format.json do
         result = resolve_gene
         status = if result.present?
@@ -58,6 +64,8 @@ class ResolveController < ApplicationController
                  end
 
         render json: { query: params[:id], result: }, status:
+      rescue StandardError => e
+        render json: { error: e.message }, status: :internal_server_error
       end
     end
   end
@@ -71,7 +79,10 @@ class ResolveController < ApplicationController
         end
 
         redirect_to '/404.html'
+      rescue StandardError
+        redirect_to '/500.html', status: :internal_server_error
       end
+
       format.json do
         result = resolve_disease
         status = if result.present?
@@ -81,6 +92,8 @@ class ResolveController < ApplicationController
                  end
 
         render json: { query: params[:id], result: }, status:
+      rescue StandardError => e
+        render json: { error: e.message }, status: :internal_server_error
       end
     end
   end
@@ -112,7 +125,25 @@ class ResolveController < ApplicationController
         "tgv#{id}" if id.present?
       end
     else
-      []
+      query = request.fullpath.delete_prefix('/variant/')
+      hgvs = HGVS.new(query)
+
+      return [] unless hgvs.match?(query)
+
+      result = hgvs.resolve
+
+      raise hgvs.translate_error if hgvs.translate_error.present?
+
+      return [] unless result.first.present?
+
+      chr, pos, ref, alt = result.first.split('-')
+
+      return [] unless [chr, pos, ref, alt].all?
+
+      view_context.search_by_vcf_representation(chr, pos, ref, alt).map do |x|
+        id = x.dig('_source', 'id')
+        "tgv#{id}" if id.present?
+      end
     end
   end
 

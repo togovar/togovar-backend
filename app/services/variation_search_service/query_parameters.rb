@@ -123,14 +123,14 @@ class VariationSearchService
       return if term.blank?
       return term unless HGVS.match?(term)
 
-      HGVS.extract_location(term) do |t, e, w|
-        @error << e if e.present?
-        @warning << w if w.present?
-        @notice << "Translate HGVS representation '#{term}' to '#{t}'" unless term == t
-        term = t
-      end
+      hgvs = HGVS.new(term)
+      location = hgvs.extract_location
 
-      term
+      @error << hgvs.translate_error if hgvs.translate_error.present?
+      @warning << hgvs.translate_warning if hgvs.translate_warning.present?
+      @notice << "Translate HGVS representation '#{term}' to '#{location}'" if location.present?
+
+      location || term
     end
 
     class Parameters

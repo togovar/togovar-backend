@@ -3,7 +3,7 @@
 Rails.application.routes.draw do
   get 'api/v1', to: 'api#v1'
 
-  get 'variant/:id', to: 'resolve#variant'
+  get 'variant/:id', to: 'resolve#variant', format: false, constraints: { id: /(tgv\d+|rs\d+|[\w%.+\-*\[;,\]:()?^=\/|]+)/ }
   get 'gene/:id', to: 'resolve#gene'
   get 'disease/:id', to: 'resolve#disease'
 
