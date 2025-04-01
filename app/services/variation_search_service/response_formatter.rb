@@ -82,7 +82,7 @@ class VariationSearchService
       # Ensure type key
       SequenceOntology::VariationClass.constants.each do |sym|
         next unless (label = SequenceOntology::VariationClass.const_get(sym)&.label)
-        types << { key: label.to_s, doc_count: 0 } unless types.find { |x| x[:key] == x.to_s }
+        types << { key: label.to_s, doc_count: 0 } unless types.find { |type| type[:key] == label.to_s }
       end
 
       json.type do
