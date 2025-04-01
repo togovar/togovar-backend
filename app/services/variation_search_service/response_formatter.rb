@@ -205,7 +205,7 @@ class VariationSearchService
         end
 
         symbols = Array(variant[:vep])
-                    .filter { |x| x.dig(:symbol, :source) == 'HGNC' && x[:hgnc_id].present? }
+                    .filter { |x| x[:hgnc_id].present? && %w[HGNC EntrezGene].include?(x.dig(:symbol, :source)) }
                     .map { |x| { name: x.dig(:symbol, :label), id: x[:hgnc_id] } }
                     .uniq
                     .map { |x| { name: x[:name], id: x[:id], synonyms: synonyms[x[:id]] }.compact }

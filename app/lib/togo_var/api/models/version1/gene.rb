@@ -25,7 +25,7 @@ module TogoVar
                     nested do
                       path :'vep.symbol'
                       query do
-                        match 'vep.symbol.source': 'HGNC'
+                        terms 'vep.symbol.source': %w[HGNC EntrezGene]
                       end
                     end
                   end
