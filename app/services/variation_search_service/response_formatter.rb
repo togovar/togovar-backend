@@ -173,18 +173,14 @@ class VariationSearchService
 
         json.type SequenceOntology.find_by_label(variant[:type])&.id
 
+        position = variant.dig(:vcf, :position) # TODO: lift up nested field
+        reference = variant.dig(:vcf, :reference)
+        alternate = variant.dig(:vcf, :alternate)
+
         json.chromosome variant.dig(:chromosome, :label)
-        json.position variant.dig(:vcf, :position)
-        json.start variant[:start]
-        json.stop variant[:stop]
-        json.reference variant[:reference].presence || ''
-        json.alternate variant[:alternate].presence || ''
-        vcf = {
-          position: variant.dig(:vcf, :position),
-          reference: variant.dig(:vcf, :reference),
-          alternate: variant.dig(:vcf, :alternate)
-        }
-        json.vcf vcf
+        json.position position
+        json.reference reference
+        json.alternate alternate
 
         if (dbsnp = Array(variant[:xref]).filter { |x| x[:source] = 'dbSNP' }.map { |x| x[:id] }).present?
           json.existing_variations dbsnp
@@ -226,13 +222,13 @@ class VariationSearchService
           external_link[:mgend] = [{ title: id, xref: format(XREF_TEMPLATE[:mgend], id: id) }]
         end
         if variant[:frequency]&.find { |x| x[:source] == 'tommo' }
-          query = "#{variant.dig(:chromosome, :label)}:#{variant.dig(:vcf, :position)}"
-          q = URI.encode_www_form(query: query)
-          external_link[:tommo] = [{ title: query, xref: "#{XREF_TEMPLATE[:tommo]}?#{q}" }]
+          query = "#{variant.dig(:chromosome, :label)}:#{position}"
+          xref = "#{XREF_TEMPLATE[:tommo]}?#{URI.encode_www_form(query: query)}"
+          external_link[:tommo] = [{ title: query, xref: }]
         end
         if variant[:frequency]&.find { |x| x[:source] =~ /^gnomad/ }
-          id = "#{variant.dig(:chromosome, :label)}-#{vcf[:position]}-#{vcf[:reference]}-#{vcf[:alternate]}"
-          external_link[:gnomad] = [{ title: id, xref: format(XREF_TEMPLATE[:gnomad], id: id) }]
+          id = "#{variant.dig(:chromosome, :label)}-#{position}-#{reference}-#{alternate}"
+          external_link[:gnomad] = [{ title: id, xref: format(XREF_TEMPLATE[:gnomad], id:) }]
         end
 
         if external_link.present?
