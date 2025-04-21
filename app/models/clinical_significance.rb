@@ -3,6 +3,8 @@
 class ClinicalSignificance
   Significance = Struct.new(:id, :key, :label, :index, keyword_init: true)
 
+  LABEL_NOT_PROVIDED = 'not provided'
+
   module Significances
     NOT_IN_CLINVAR = Significance.new(id: :not_in_clinvar, key: :NC, label: 'Not in ClinVar', index: 0)
     PATHOGENIC = Significance.new(id: :pathogenic, key: :P, label: 'Pathogenic', index: 1)
