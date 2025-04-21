@@ -247,7 +247,7 @@ module API
           id: x[:id],
           condition: Array(x[:condition]).map do |y|
             {
-              medgen: Array(y[:medgen]).map { |v| { name: conditions[v] || CLINVAR_CONDITION_NOT_PROVIDED, medgen: v } },
+              medgen: Array(y[:medgen]).map { |v| { name: conditions[v] || ClinicalSignificance::LABEL_NOT_PROVIDED, medgen: v } },
               pref_name: y[:pref_name],
               classification: Array(y[:classification]).filter_map { |v| ClinicalSignificance.find_by_id(v.tr(',', '').tr(' ', '_').to_sym)&.label },
               submission_count: y[:submission_count]

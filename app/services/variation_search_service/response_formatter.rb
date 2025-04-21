@@ -131,10 +131,6 @@ class VariationSearchService
       end
     end
 
-    CLINVAR_CONDITION_NOT_PROVIDED = 'not provided'
-
-    # C3661900 = not provided
-    # CN169374 = not specified
     MEDGEN_IGNORE = %w[C3661900 CN169374]
 
     MEDGEN_COMPARATOR = proc do |a, b|
@@ -259,7 +255,7 @@ class VariationSearchService
               {
                 conditions: if x[:medgen].present?
                               Array(x[:medgen]).sort(&MEDGEN_COMPARATOR)
-                                               .map { |v| { name: conditions[v] || CLINVAR_CONDITION_NOT_PROVIDED, medgen: v } }
+                                               .map { |v| { name: conditions[v] || ClinicalSignificance::LABEL_NOT_PROVIDED, medgen: v } }
                             elsif x[:pref_name].present?
                               Array(x[:pref_name]).map { |v| { name: v } }
                             else
