@@ -61,17 +61,20 @@ class VariationSearchService
       aggs = @result[:aggs]
       datasets = Array(aggs.dig(:frequency, :source, :buckets)).concat(Array(aggs.dig(:condition, :source, :buckets)))
 
+      # TODO: remove if dataset renamed
+      if (v = datasets.find { |x| x[:key] == 'jga_ngs' })
+        v[:key] = 'jga_wes'
+      end
+
       # Ensure dataset key
       accessible_datasets.each do |x|
-        datasets << { key: x.to_s, doc_count: 0 } unless datasets.find { |dataset| dataset[:key] == x.to_s }
+        key = x.to_s
+        datasets << { key:, doc_count: 0 } unless datasets.find { |dataset| dataset[:key] == key }
       end
 
       json.dataset do
-        datasets.each do |x|
-          # TODO: remove if dataset renamed
-          key = x[:key] == 'jga_ngs' ? 'jga_wes' : x[:key]
-
-          json.set! key, x[:doc_count] if accessible_datasets.include?(key.to_sym)
+        datasets.each do |dataset|
+          json.set! dataset[:key], dataset[:doc_count] if accessible_datasets.include?(dataset[:key].to_sym)
         end
       end
     end
