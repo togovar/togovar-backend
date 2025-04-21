@@ -212,21 +212,16 @@ class VariationSearchService
             {
               conditions: if x[:medgen].present?
                             Array(x[:medgen]).sort(&MEDGEN_COMPARATOR)
-            (condition[:condition].presence || [{}]).map do |x|
-              {
-                conditions: if x[:medgen].present?
-                              Array(x[:medgen]).sort(&MEDGEN_COMPARATOR)
-                                               .map { |v| { name: conditions[v] || ClinicalSignificance::LABEL_NOT_PROVIDED, medgen: v } }
-                            elsif x[:pref_name].present?
-                              Array(x[:pref_name]).map { |v| { name: v } }
-                            else
-                              []
-                            end,
-                interpretations: Array(x[:classification]).filter_map { |y| ClinicalSignificance.find_by_id(y.tr(',', '').tr(' ', '_').to_sym)&.key },
-                submission_count: x[:submission_count],
-                source: condition[:source]
-              }
-            end
+                                             .map { |v| { name: conditions[v] || ClinicalSignificance::LABEL_NOT_PROVIDED, medgen: v } }
+                          elsif x[:pref_name].present?
+                            Array(x[:pref_name]).map { |v| { name: v } }
+                          else
+                            []
+                          end,
+              interpretations: Array(x[:classification]).filter_map { |y| ClinicalSignificance.find_by_id(y.tr(',', '').tr(' ', '_').to_sym)&.key },
+              submission_count: x[:submission_count],
+              source: condition[:source]
+            }
           end
         end
 
