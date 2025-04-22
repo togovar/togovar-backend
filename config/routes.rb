@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 Rails.application.routes.draw do
+  root to: 'application#index'
+
   get 'api/v1', to: 'api#v1'
 
   namespace :api do

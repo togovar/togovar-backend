@@ -4,6 +4,13 @@ class ApplicationController < ActionController::API
   include ActionController::Cookies
   include ActionController::MimeResponds
 
+  # GET /
+  def index
+    render json: {
+      name: Rails.application.class.module_parent_name
+    }
+  end
+
   protected
 
   # @return [Hash]
