@@ -41,6 +41,8 @@ class AuthController < ActionController::Base
       credentials: auth&.credentials&.to_hash&.deep_symbolize_keys,
     }.compact
 
+    Rails.logger.info('auth_callback') { extra['raw_info']&.to_json }
+
     redirect_to (previous = session.delete(:redirect_url)).present? ? previous : :root
   end
 
