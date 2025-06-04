@@ -5,102 +5,99 @@ class HGVS
                   'https://rest.ensembl.org'.freeze
                 end
 
-  API = '/variant_recoder/human/%s'.freeze
+  VARIANT_RECORDER_PATH = '/variant_recoder/human/%s'.freeze
 
-  HGVSG = /^(NC_\d{6})\.\d+:g\.(\d+)_?(\d+)?(.+)/.freeze
-
-  HGVS = /.+:[cgmnpr]\..+/.freeze
-
-  REFSEQ_CHR = {
-    'NC_000001' => '1',
-    'NC_000002' => '2',
-    'NC_000003' => '3',
-    'NC_000004' => '4',
-    'NC_000005' => '5',
-    'NC_000006' => '6',
-    'NC_000007' => '7',
-    'NC_000008' => '8',
-    'NC_000009' => '9',
-    'NC_000010' => '10',
-    'NC_000011' => '11',
-    'NC_000012' => '12',
-    'NC_000013' => '13',
-    'NC_000014' => '14',
-    'NC_000015' => '15',
-    'NC_000016' => '16',
-    'NC_000017' => '17',
-    'NC_000018' => '18',
-    'NC_000019' => '19',
-    'NC_000020' => '20',
-    'NC_000021' => '21',
-    'NC_000022' => '22',
-    'NC_000023' => 'X',
-    'NC_000024' => 'Y',
-    'NC_012920' => 'MT'
-  }.freeze
+  HGVS_REGEXP = /.+:[cgmnpr]\..+/.freeze
 
   class UnknownSequenceError < StandardError; end
 
   class << self
     def match?(term)
-      term.match?(HGVS)
+      term.match?(HGVS_REGEXP)
     end
+  end
 
-    def extract_location(term)
-      result = begin
-        connection = ::Faraday.new(ENSEMBL_URL) do |conn|
-          conn.options[:open_timeout] = 30
-          conn.options[:timeout] = 30
-          conn.adapter Faraday.default_adapter
-        end
+  attr_reader :translate_error, :translate_warning
 
-        response = connection.get(API % URI.encode_www_form_component(term)) do |req|
-          req.headers['Content-Type'] = 'application/json'
-        end
+  def initialize(term)
+    @term = term
+  end
 
-        json = JSON.parse(response.body)
-        hgvsg = json.map { |x| x.filter { |_, v| v.is_a?(Hash) }.map { |_, v| v['hgvsg'] } }
-                    .flatten
-                    .uniq
-                    .filter { |x| x.match?(HGVSG) }
+  def match?(term)
+    self.class.match?(term)
+  end
 
-        if json.is_a?(Hash) && json['error'].present?
-          Rails.logger.error('HGVS') { json['error'] }
-          [term, json['error']]
-        elsif hgvsg.present?
-          pos = hgvsg.map do |x|
-            m = x.match(HGVSG)
+  def resolve
+    result = translate
 
-            chr = REFSEQ_CHR[m[1]] || raise(UnknownSequenceError, "Failed to map RefSeq ID to chromosome: #{m[1]}")
-            start = m[2]
-            stop = m[3]
-            allele = m[4]
+    return [] unless result.is_a?(Array)
 
-            if stop.present?
-              "#{chr}:#{start}-#{stop}:#{allele}"
-            else
-              "#{chr}:#{start}:#{allele}"
-            end
-          end
+    result.map { |hash| hash.values.filter_map { |v| v.is_a?(Hash) ? v['vcf_string'] : nil } }.flatten.uniq
+  rescue Faraday::ConnectionFailed
+    raise "Server not responding: #{ENSEMBL_URL}"
+  rescue Faraday::ClientError, Faraday::ServerError => e
+    raise "#{e.response&.status} #{e.message}"
+  rescue Faraday::Error
+    raise "Server returned error: #{ENSEMBL_URL}"
+  rescue StandardError => e
+    Rails.logger.error(self.class) { [e.message, e.backtrace].join("\n") }
+    raise '500 Internal Server Error'
+  end
 
-          [pos.join(','), nil, json.dig(0, 'warnings', 0)]
-        else
-          [term]
-        end
-      rescue Faraday::ClientError => e
-        Rails.logger.error('HGVS') { e }
-        [term, "#{e.response&.status} #{e.response&.reason_phrase}"]
-      rescue UnknownSequenceError => e
-        Rails.logger.error('HGVS') { e }
-        [term, e.message]
-      rescue StandardError => e
-        Rails.logger.error('HGVS') { e }
-        [term, '500 Internal Server Error']
-      end
+  def extract_location
+    if (vcf = resolve.first).present?
+      chr, pos, ref, alt = vcf.split('-')
 
-      yield result if block_given?
+      "#{chr}:#{pos}:#{ref}>#{alt}"
+    else
+      @translate_error = "Failed to translate HGVS representation: #{@term}"
+      nil
+    end
+  rescue Faraday::ConnectionFailed
+    @translate_error = "Server not responding: #{ENSEMBL_URL}"
+    nil
+  rescue Faraday::ClientError, Faraday::ServerError => e
+    @translate_error = "#{e.response&.status} #{e.message}"
+    nil
+  rescue Faraday::Error
+    @translate_error = "Server returned error: #{ENSEMBL_URL}"
+    nil
+  rescue StandardError => e
+    Rails.logger.error(self.class) { [e.message, e.backtrace].join("\n") }
+    @translate_error = '500 Internal Server Error'
+    nil
+  end
 
-      result
+  private
+
+  def translate
+    @translate ||= begin
+                     query = { vcf_string: 1 }.to_query
+                     url = "#{VARIANT_RECORDER_PATH % URI.encode_www_form_component(@term)}?#{query}"
+                     response = ensembl.get(url) do |req|
+                       req.headers['Accept'] = 'application/json'
+                     end
+
+                     json = JSON.parse(response.body)
+
+                     if json.is_a?(Hash) && json['error'].present?
+                       @translate_error = json['error']
+                       return
+                     end
+
+                     if (warning = json.dig(0, 'warnings', 0)).present?
+                       @translate_warning = warning
+                     end
+
+                     json
+                   end
+  end
+
+  def ensembl
+    @connection ||= Faraday.new(ENSEMBL_URL) do |conn|
+      conn.options[:open_timeout] = 10
+      conn.options[:timeout] = 30
+      conn.adapter Faraday.default_adapter
     end
   end
 end

@@ -24,7 +24,9 @@ class VariationSearchService
 
     # @return [Hash]
     def execute
-      ResponseFormatter.new(param, search, @error, @warning, @notice, user: @options[:user]).to_hash
+      gene_order = (gene = Gene.exact_match(param.term)) ? [gene[:hgnc_id]] : []
+
+      ResponseFormatter.new(param, search, @error, @warning, @notice, user: @options[:user], gene_order:).to_hash
     end
 
     def query
@@ -103,27 +105,32 @@ class VariationSearchService
       param.term = hgvs_notation_to_location(param.term)
       res = Variation.search(query, request_cache: !param.term.present?)
 
-      {
-        total: Variation::QueryHelper.total(@options[:user]),
-        filtered: filtered_count,
-        results: res.records.results,
-        aggs: param.stat? ? Variation.search(stat_query, request_cache: true).aggregations.to_hash : {},
-        count_condition_absence: Variation::QueryHelper.count_conditions_absence(builder.build)
-      }
+      hash = {}
+
+      if param.stat?
+        hash.merge!(total: Variation::QueryHelper.total(@options[:user]),
+                    filtered: filtered_count,
+                    aggs: param.stat? ? Variation.search(stat_query, request_cache: true).aggregations.to_hash : {},
+                    count_condition_absence: Variation::QueryHelper.count_conditions_absence(builder.build))
+      end
+
+      hash.merge!(results: res.records.results) if param.data?
+
+      hash
     end
 
     def hgvs_notation_to_location(term)
       return if term.blank?
       return term unless HGVS.match?(term)
 
-      HGVS.extract_location(term) do |t, e, w|
-        @error << e if e.present?
-        @warning << w if w.present?
-        @notice << "Translate HGVS representation '#{term}' to '#{t}'" unless term == t
-        term = t
-      end
+      hgvs = HGVS.new(term)
+      location = hgvs.extract_location
 
-      term
+      @error << hgvs.translate_error if hgvs.translate_error.present?
+      @warning << hgvs.translate_warning if hgvs.translate_warning.present?
+      @notice << "Translate HGVS representation '#{term}' to '#{location}'" if location.present?
+
+      location || term
     end
 
     class Parameters
@@ -168,6 +175,7 @@ class VariationSearchService
         @limit = between(params.fetch(:limit, '100').to_i, 0, 100)
 
         @stat = params.fetch(:stat, '1')
+        @data = params.fetch(:data, '1')
         @debug = params.key?(:debug)
         @options = options
       end
@@ -180,8 +188,14 @@ class VariationSearchService
         @debug
       end
 
+      DISABLE_VALUES = %w[0 f false]
+
       def stat?
-        @stat != '0'
+        !DISABLE_VALUES.include?(@stat.to_s)
+      end
+
+      def data?
+        !DISABLE_VALUES.include?(@data.to_s)
       end
 
       def term
@@ -275,7 +289,7 @@ class VariationSearchService
         include Base
 
         ALL = Rails.application.config.application[:query_params][:frequency]
-                   .map { |x| Parameter.new(x[:id], x[:label], x[:key], x[:default]) }
+                .map { |x| Parameter.new(x[:id], x[:label], x[:key], x[:default]) }
       end
 
       class Type

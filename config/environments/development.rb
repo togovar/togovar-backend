@@ -45,8 +45,14 @@ Rails.application.configure do
 
   config.middleware.insert(0, Rack::ReverseProxy) do
     reverse_proxy_options preserve_host: true
-    reverse_proxy %r{^/$}, 'http://localhost:8000/index.html'
-    reverse_proxy %r{^/(\?.*)$}, 'http://localhost:8000/index.html$1'
-    reverse_proxy %r{^/((css|js|images|fonts|variant|gene|disease|doc)/.*)$}, 'http://localhost:8000/$1'
+    reverse_proxy '/togovar/GRCh38/', 'https://togovar.github.io'
+  end
+
+  config.middleware.insert(0, Rack::Rewrite) do
+    rewrite %r{^/(index.html)?$}, '/togovar/GRCh38/index.html'
+    rewrite %r{^/(css|fonts|images|js)/(.*)$}, '/togovar/GRCh38/$1/$2'
+    rewrite %r{^/(variant)/tgv\d+$}, '/togovar/GRCh38/$1/index.html'
+    rewrite %r{^/(disease)/\d+$}, '/togovar/GRCh38/$1/index.html'
+    rewrite %r{^/(gene)/CN?\d+$}, '/togovar/GRCh38/$1/index.html'
   end
 end

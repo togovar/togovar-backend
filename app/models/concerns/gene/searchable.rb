@@ -132,7 +132,24 @@ class Gene
       end
 
       # @param [String] keyword
-      # @return [Elasticsearch::Model::Response] response
+      # @return [Elasticsearch::Model::HashWrapper, nil] response
+      # {
+      #   "hgnc_id"=>404,
+      #   "symbol"=>"ALDH2",
+      #   "approved"=>true,
+      #   "name"=>"aldehyde dehydrogenase 2 family member",
+      #   "location"=>"12q24.12",
+      #   "family"=>[
+      #     {
+      #       "id"=>398,
+      #       "name"=>"Aldehyde dehydrogenases"
+      #     },
+      #     {
+      #       "id"=>1691,
+      #       "name"=>"MicroRNA protein coding host genes"
+      #     }
+      #   ]
+      # }
       def exact_match(keyword)
         query = ::Elasticsearch::DSL::Search.search do
           query do
@@ -140,9 +157,11 @@ class Gene
           end
         end
 
-        results = __elasticsearch__.search(query).results
+        res = __elasticsearch__.search(query).results
 
-        results.map { |x| x.dig(:_source, :symbol) }.first if results.total.positive?
+        return unless res.total.positive?
+
+        res.map { |x| x[:_source] }.first
       end
     end
   end

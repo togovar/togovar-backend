@@ -36,10 +36,14 @@ class VariationSearchService
       params.merge!(body)
     end
 
-    if @params[:formatter] === 'html'
+    gene_order = extract_query_gene(params[:query])
+
+    if params[:formatter] == 'html'
       HtmlFormatter.new(params, search, user: @options[:user]).to_hash
+    elsif params[:formatter] == 'jogo'
+      ResponseFormatter.new(params, search_all, @errors, user: @options[:user]).to_hash
     else
-      ResponseFormatter.new(params, search, @errors, user: @options[:user]).to_hash
+      ResponseFormatter.new(params, search, @errors, user: @options[:user], gene_order: ).to_hash
     end
   end
 
@@ -101,12 +105,95 @@ class VariationSearchService
   end
 
   def search
+    hash = {}
+
+    if @params[:stat] != 0
+      hash.merge!(total: Variation::QueryHelper.total(@options[:user]),
+                  filtered: filtered_count,
+                  aggs: paging? ? {} : Variation.search(stat_query, request_cache: true).aggregations,
+                  count_condition_absence: Variation::QueryHelper.count_conditions_absence(model.to_hash))
+    end
+
+    hash.merge!(results: results) if @params[:data] != 0
+
+    hash
+  end
+
+  MINIMAL_FIELDS = %w[
+    id
+    type
+    chromosome.index
+    chromosome.label
+    start
+    stop
+    reference
+    alternate
+    vcf.position
+    vcf.reference
+    vcf.alternate
+    conditions.source
+    conditions.id
+    conditions.condition.medgen
+    conditions.condition.pref_name
+    conditions.condition.classification
+    conditions.condition.submission_count
+  ]
+
+  def search_all
+    results = []
+
+    q = query
+    q[:size] = 10_000
+    q[:fields] = MINIMAL_FIELDS
+    q[:_source] = false
+    q.delete(:from)
+
+    while (res = Variation.search(q).records.results.results).present?
+      res.each do |r|
+        fields = r.delete(:fields)
+
+        r[:_source] = {
+          id: fields['id']&.first,
+          type: fields['type']&.first,
+          chromosome: {
+            index: fields['chromosome.index']&.first,
+            label: fields['chromosome.label']&.first
+          },
+          start: fields['start']&.first,
+          stop: fields['stop']&.first,
+          reference: fields['reference']&.first,
+          alternate: fields['alternate']&.first,
+          vcf: {
+            position: fields['vcf.position']&.first,
+            reference: fields['vcf.reference']&.first,
+            alternate: fields['vcf.alternate']&.first
+          },
+          conditions: (fields['conditions'] || []).map do |condition|
+            {
+              source: condition['source']&.first,
+              id: condition['id']&.first,
+              condition: (condition['condition'] || []).map do |x|
+                {
+                  medgen: x['medgen'],
+                  pref_name: x['pref_name'],
+                  classification: x['classification'],
+                  submission_count: x['submission_count']&.first
+                }
+              end
+            }
+          end
+        }
+      end
+
+      results.concat(res)
+
+      break if (last = res.last[:sort]).blank?
+
+      q[:search_after] = last
+    end
+
     {
-      total: Variation::QueryHelper.total(@options[:user]),
-      filtered: filtered_count,
       results: results,
-      aggs: paging? ? {} : Variation.search(stat_query, request_cache: true).aggregations,
-      count_condition_absence: Variation::QueryHelper.count_conditions_absence(model.to_hash)
     }
   end
 
@@ -128,5 +215,21 @@ class VariationSearchService
 
                       hash.tap { |h| debug[:stat_query] = h if @options[:debug] }
                     end
+  end
+
+  def extract_query_gene(obj)
+    if obj.is_a?(Hash) && obj.key?('gene')
+      if obj.dig('gene', 'relation') == 'eq'
+        Array(obj.dig('gene', 'terms'))
+      else
+        []
+      end
+    elsif obj.is_a?(Hash)
+      obj.values.map { |v| extract_query_gene(v) }
+    elsif obj.is_a?(Array)
+      obj.map { |o| extract_query_gene(o) }
+    else
+      []
+    end.flatten.sort.uniq
   end
 end

@@ -303,6 +303,7 @@ GEM
     rack-reverse-proxy (0.12.0)
       rack (>= 1.0.0)
       rack-proxy (~> 0.6, >= 0.6.1)
+    rack-rewrite (1.5.1)
     rack-session (1.0.2)
       rack (< 3)
     rack-test (2.1.0)
@@ -557,6 +558,7 @@ DEPENDENCIES
   puma (~> 5.6)
   rack-cors (~> 1.1, >= 1.1.1)
   rack-reverse-proxy
+  rack-rewrite
   rails (~> 6.1.7)
   rails_pretty_json_rednerer (~> 0.1.0)
   redis-rails (~> 5.0, >= 5.0.2)

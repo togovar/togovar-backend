@@ -29,8 +29,8 @@ module Elasticsearch
                         when /^(\d+|[XY]|MT):\d+-\d+(:[^,]+)?(,(\d+|[XY]|MT):\d+-\d+(:[^,]+)?)*$/
                           region_condition(term)
                         else
-                          if (t = Gene.exact_match(term))
-                            gene_condition(t)
+                          if (gene = Gene.exact_match(term))
+                            gene_condition(gene[:hgnc_id])
                           else
                             disease_condition(term)
                           end
@@ -580,15 +580,20 @@ module Elasticsearch
     def gene_condition(term)
       query = Elasticsearch::DSL::Search.search do
         query do
-          nested do
-            path :'vep.symbol'
-            query do
-              bool do
-                must do
-                  match 'vep.symbol.source': 'HGNC'
+          bool do
+            must do
+              nested do
+                path 'vep'
+                query do
+                  terms 'vep.hgnc_id': Array(term)
                 end
-                must do
-                  terms 'vep.symbol.label': [term]
+              end
+            end
+            must do
+              nested do
+                path :'vep.symbol'
+                query do
+                  terms 'vep.symbol.source': %w[HGNC EntrezGene]
                 end
               end
             end

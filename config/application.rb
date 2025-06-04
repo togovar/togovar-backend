@@ -36,6 +36,7 @@ module TogoVar
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
 
+    config.middleware.use Rack::Deflater
     config.middleware.use ActionDispatch::Cookies
     config.middleware.use ActionDispatch::Session::RedisStore,
                           servers: [
@@ -53,7 +54,6 @@ module TogoVar
 
     config.elasticsearch = config_for(:elasticsearch)
     config.endpoint = config_for(:endpoint)
-    config.virtuoso = config_for(:virtuoso)
 
     config.application = config_for(:application)[ENV.fetch('TOGOVAR_REFERENCE')]
   end
