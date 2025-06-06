@@ -12,28 +12,62 @@ module Elasticsearch
       @options = options
     end
 
+    module Regex
+      SEP_VARIANT = /[:-]/.freeze
+      SEP_RANGE = /-/.freeze
+      SEP_ALLELE_CHANGE = /[>-]/.freeze
+      CHROMOSOME = /(chr)?(?<chr>[1-9]|1[0-9]|2[0-2]|[XY]|MT?)/.freeze
+      POSITION = /(?<pos>\d+)/.freeze
+      REGION_FROM = /(?<from>\d+)/.freeze
+      REGION_TO = /(?<to>\d+)/.freeze
+      REFERENCE = /(?<ref>[a-zA-Z]+)/.freeze
+      ALTERNATE = /(?<alt>[a-zA-Z]+)/.freeze
+
+      REGEXP_TOGOVAR_ID = /^tgv\d+$/.freeze
+      REGEXP_DBSNP_ID = /^rs\d+$/.freeze
+      REGEXP_VARIANT_POSITION = /^#{CHROMOSOME}#{SEP_VARIANT}#{POSITION}(#{SEP_VARIANT}#{REFERENCE}(#{SEP_ALLELE_CHANGE}#{ALTERNATE})?)?$/.freeze
+      REGEXP_VARIANT_REGION = /^#{CHROMOSOME}#{SEP_VARIANT}#{REGION_FROM}#{SEP_RANGE}#{REGION_TO}(#{SEP_VARIANT}#{REFERENCE}(#{SEP_ALLELE_CHANGE}#{ALTERNATE})?)?$/.freeze
+    end
+
     def term(term)
       @term_condition = nil
 
       return self if term.blank?
 
-      @term_condition = case term.delete(' ')
-                        when /^tgv\d+(,tgv\d+)*$/
-                          tgv_condition(term)
-                        when /^rs\d+(,rs\d+)*$/i
-                          rs_condition(term)
-                        when /^(\d+|[XY]|MT):\d+:(\w+)>(\w+)(,(\d+|[XY]|MT):\d+:(\w+)>(\w+))*$/
-                          position_allele_condition(term)
-                        when /^(\d+|[XY]|MT):\d+(:[^,]+)?(,(\d+|[XY]|MT):\d+(:[^,]+)?)*$/
-                          position_condition(term)
-                        when /^(\d+|[XY]|MT):\d+-\d+(:[^,]+)?(,(\d+|[XY]|MT):\d+-\d+(:[^,]+)?)*$/
-                          region_condition(term)
+      inputs = CSV.parse_line(term) || []
+
+      queries = []
+
+      if inputs.any? { |x| x.match?(Regex::REGEXP_TOGOVAR_ID) }
+        queries << tgv_condition(inputs.filter { |x| x.match?(Regex::REGEXP_TOGOVAR_ID) })
+        inputs.delete_if { |x| x.match?(Regex::REGEXP_TOGOVAR_ID) }
+      end
+
+      if inputs.any? { |x| x.match?(Regex::REGEXP_DBSNP_ID) }
+        queries << rs_condition(inputs.filter { |x| x.match?(Regex::REGEXP_DBSNP_ID) })
+        inputs.delete_if { |x| x.match?(Regex::REGEXP_DBSNP_ID) }
+      end
+
+      inputs.each do |x|
+        queries << if (m = x.match(Regex::REGEXP_VARIANT_POSITION))
+                     region_condition(m[:chr], m[:pos], m[:pos], m[:ref], m[:alt])
+                   elsif (m = x.match(Regex::REGEXP_VARIANT_REGION))
+                     region_condition(m[:chr], m[:from], m[:to], m[:ref], m[:alt])
+                   elsif (gene = Gene.exact_match(x))
+                    gene_condition(gene[:hgnc_id])
+                   else
+                     disease_condition(x)
+                   end
+      end
+
+      @term_condition = if queries.size > 1
+                          {
+                            bool: {
+                              should: queries
+                            }
+                          }
                         else
-                          if (gene = Gene.exact_match(term))
-                            gene_condition(gene[:hgnc_id])
-                          else
-                            disease_condition(term)
-                          end
+                          queries[0]
                         end
 
       self
@@ -465,11 +499,9 @@ module Elasticsearch
     end
 
     def tgv_condition(term)
-      id = term.split(/[\s,]/)
-
       query = Elasticsearch::DSL::Search.search do
         query do
-          terms id: id.map { |x| x.sub(/^tgv/, '').to_i }
+          terms id: Array(term).map { |x| x.delete_prefix('tgv').to_i }
         end
       end
 
@@ -477,8 +509,6 @@ module Elasticsearch
     end
 
     def rs_condition(term)
-      id = term.split(/[\s,]/)
-
       query = Elasticsearch::DSL::Search.search do
         query do
           nested do
@@ -489,7 +519,7 @@ module Elasticsearch
                   match 'xref.source': 'dbSNP'
                 end
                 must do
-                  terms 'xref.id': id
+                  terms 'xref.id': Array(term)
                 end
               end
             end
@@ -500,76 +530,52 @@ module Elasticsearch
       query.to_hash[:query]
     end
 
-    def position_condition(term)
-      positions = term.split(/[\s,]/)
-
-      region_condition(positions.map { |p| chr, pos = p.split(':'); "#{chr}:#{pos}-#{pos}" }.join(','))
-    end
-
-    def position_allele_condition(term)
-      positions = term.split(/[\s,]/)
-
-      region_condition(positions.map { |p| chr, pos, allele = p.split(':'); "#{chr}:#{pos}-#{pos}:#{allele}" }.join(','))
-    end
-
-    def region_condition(term)
-      positions = term.split(/[\s,]/)
-
+    def region_condition(chr, from, to, ref, alt)
       query = Elasticsearch::DSL::Search.search do
         query do
           bool do
-            positions.each do |x|
-              chr, pos, allele = x.split(':')
-              start, stop = pos.split('-')
-              should do
-                bool do
-                  must { match 'chromosome.label': chr }
-                  if allele.present?
-                    ref, alt = allele.split('>')
-                    must { match reference: ref } if ref.present?
-                    must { match alternate: alt } if alt.present?
+            must { match 'chromosome.label': chr }
+            must do
+              bool do
+                # TODO: use position.left and position.right
+                should do
+                  bool do
+                    must { range(:start) { lte from.to_i } }
+                    must { range(:stop) { gte to.to_i } }
                   end
-                  must do
-                    bool do
-                      should do
-                        bool do
-                          must { range(:start) { lte start.to_i } }
-                          must { range(:stop) { gte stop.to_i } }
-                        end
-                      end
-                      should do
-                        bool do
-                          must { range(:start) { gte start.to_i } }
-                          must { range(:stop) { lte stop.to_i } }
-                        end
-                      end
-                      should do
-                        bool do
-                          must { range(:start) { lte start.to_i } }
-                          must do
-                            range(:stop) do
-                              gte start.to_i
-                              lte stop.to_i
-                            end
-                          end
-                        end
-                      end
-                      should do
-                        bool do
-                          must do
-                            range(:start) do
-                              gte start.to_i
-                              lte stop.to_i
-                            end
-                          end
-                          must { range(:stop) { gt start.to_i } }
-                        end
+                end
+                should do
+                  bool do
+                    must { range(:start) { gte from.to_i } }
+                    must { range(:stop) { lte to.to_i } }
+                  end
+                end
+                should do
+                  bool do
+                    must { range(:start) { lte from.to_i } }
+                    must do
+                      range(:stop) do
+                        gte from.to_i
+                        lte to.to_i
                       end
                     end
                   end
                 end
+                should do
+                  bool do
+                    must do
+                      range(:start) do
+                        gte from.to_i
+                        lte to.to_i
+                      end
+                    end
+                    must { range(:stop) { gt from.to_i } }
+                  end
+                end
               end
             end
+            must { match reference: ref } if ref.present?
+            must { match alternate: alt } if alt.present?
           end
         end
       end
