@@ -11,10 +11,8 @@ class ResolveController < ApplicationController
 
         if result.size == 1 && result[0].present?
           redirect_to "/variant/#{result[0]}"
-        elsif result.size > 1 || (result.size == 1 && result[0].blank?)
-          redirect_to "/?#{search_query_parameters}", status: :see_other
         else
-          redirect_to '/404.html', status: :not_found
+          redirect_to "/?#{search_query_parameters}", status: :see_other
         end
       rescue StandardError
         redirect_to '/500.html', status: :internal_server_error
@@ -73,7 +71,7 @@ class ResolveController < ApplicationController
   def disease
     respond_to do |format|
       format.html do
-        if /^CN?[1-9][0-9]*$/.match?(params[:id])
+        if /^[CN]*\d{4,7}$/.match?(params[:id])
           redirect_to '/400.html'
           return
         end
