@@ -34,7 +34,7 @@ module Elasticsearch
 
       return self if term.blank?
 
-      inputs = CSV.parse_line(term) || []
+      inputs = CSV.parse_line(term, col_sep: ' ') || []
 
       queries = []
 
