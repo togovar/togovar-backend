@@ -10,9 +10,14 @@ module TogoVar
           attr_reader :dataset
           attr_reader :frequency
           attr_reader :count
+          attr_reader :genotype
           attr_reader :filtered
 
-          validate { errors.add(:base, "Use either of 'count' or 'frequency'") unless count.nil? ^ frequency.nil? }
+          validate do
+            unless [frequency, count, genotype].one?
+              errors.add(:base, "Use either of 'frequency', 'count' or 'genotype'")
+            end
+          end
 
           def initialize(*args)
             super
@@ -22,6 +27,7 @@ module TogoVar
             @dataset = arg[:dataset]
             @frequency = arg[:frequency]
             @count = arg[:count]
+            @genotype = arg[:genotype]&.deep_symbolize_keys
             @filtered = arg[:filtered]
           end
 
@@ -31,8 +37,13 @@ module TogoVar
 
             model = {}
             model.update(dataset: Dataset.new(@dataset)) if @dataset
-            model.update(frequency: Range.new(@frequency.merge(field: 'frequency.af'))) if @frequency
-            model.update(count: Range.new(@count.merge(field: 'frequency.ac'))) if @count
+            if @frequency
+              model.update(frequency: Range.new(@frequency.merge(field: 'frequency.af')))
+            elsif @count
+              model.update(count: Range.new(@count.merge(field: 'frequency.ac')))
+            elsif @genotype
+              model.update(genotype: Range.new(@genotype[:count].merge(field: "frequency.#{@genotype[:key]}")))
+            end
 
             @models = [model]
           end
@@ -52,6 +63,7 @@ module TogoVar
                       must models[:dataset] if models[:dataset]
                       must models[:frequency] if models[:frequency]
                       must models[:count] if models[:count]
+                      must models[:genotype] if models[:genotype]
                       must { match 'frequency.filter': 'PASS' } if filtered.present?
                     end
                   end

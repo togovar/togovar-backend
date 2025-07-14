@@ -462,6 +462,8 @@ components:
               $ref: '#/components/examples/SearchVariant-10'
             Example11:
               $ref: '#/components/examples/SearchVariant-11'
+            Example12:
+              $ref: '#/components/examples/SearchVariant-12'
 
     SearchGene:
       description: Schema for searching gene
@@ -725,6 +727,7 @@ components:
             - frequency
           oneOf:
             - type: object
+              description: search datasets by allele frequency
               additionalProperties: false
               required:
                 - frequency
@@ -738,6 +741,7 @@ components:
                   description: if `true`, exclude variants with a FILTER flag other than PASS
 
             - type: object
+              description: search datasets by allele count
               additionalProperties: false
               required:
                 - count
@@ -746,6 +750,50 @@ components:
                   $ref: '#/components/schemas/Dataset'
                 count:
                   $ref: '#/components/schemas/Range'
+                filtered:
+                  type: boolean
+                  description: if `true`, exclude variants with a FILTER flag other than PASS
+
+            - type: object
+              description: search datasets by genotype count
+              additionalProperties: false
+              required:
+                - genotype
+              properties:
+                dataset:
+                  $ref: '#/components/schemas/Dataset'
+                genotype:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - key
+                    - count
+                  properties:
+                    key:
+                      type: string
+                      description: >
+                        Available values
+                         * `aac` - Genotype count for Alt/Alt
+                         * `arc` - Genotype count for Ref/Alt
+                         * `rrc` - Genotype count for Ref/Ref
+                         * `aoc` - Genotype count for Alt/Other
+                         * `roc` - Genotype count for Ref/Other
+                         * `ooc` - Genotype count for Other/Other
+                         * `hac` - Allele counts in hemizygous genotypes
+                         * `hrc` - Allele counts in the hemizygous genotype of the reference allele
+                         * `hoc` - Allele counts in the hemizygous genotype of other alleles
+                      enum:
+                        - aac
+                        - arc
+                        - aoc
+                        - rrc
+                        - ooc
+                        - roc
+                        - hac
+                        - hrc
+                        - hoc
+                    count:
+                      $ref: '#/components/schemas/Range'
                 filtered:
                   type: boolean
                   description: if `true`, exclude variants with a FILTER flag other than PASS
@@ -1571,6 +1619,17 @@ components:
                 filtered: true
 
     SearchVariant-6:
+      summary: List variants by genotype count.
+      value:
+        query:
+          frequency:
+            genotype:
+              key: aac
+              count:
+                gte: 5
+            filtered: true
+
+    SearchVariant-7:
       summary: List variants exist on ALDH2 (Aldehyde Dehydrogenase 2 family member).
       value:
         query:
@@ -1579,7 +1638,7 @@ components:
             terms:
               - 404
 
-    SearchVariant-7:
+    SearchVariant-8:
       summary: List variants associated with C2675520 (Breast-ovarian cancer, familial 2).
       value:
         query:
@@ -1588,7 +1647,7 @@ components:
             terms:
               - C2675520
 
-    SearchVariant-8:
+    SearchVariant-9:
       summary: List variants associated with MONDO_0003582 (hereditary breast ovarian cancer syndrome).
       value:
         query:
@@ -1597,7 +1656,7 @@ components:
             terms:
               - MONDO_0003582
 
-    SearchVariant-9:
+    SearchVariant-10:
       summary: Paginate result over 10,000 records.
       value:
         offset:
@@ -1607,7 +1666,7 @@ components:
           - A
         limit: 100
 
-    SearchVariant-10:
+    SearchVariant-11:
       summary: List variants by prediction score
       value:
         query:
@@ -1625,7 +1684,7 @@ components:
                   gt: 0.564
                   lte: 1
 
-    SearchVariant-11:
+    SearchVariant-12:
       summary: List variants by prediction score unassigned or unknown
       value:
         query:
