@@ -54,7 +54,7 @@ module Elasticsearch
                    elsif (m = x.match(Regex::REGEXP_VARIANT_REGION))
                      region_condition(m[:chr], m[:from], m[:to], m[:ref], m[:alt])
                    elsif (gene = Gene.exact_match(x))
-                    gene_condition(gene[:hgnc_id])
+                     gene_condition(gene[:hgnc_id])
                    else
                      disease_condition(x)
                    end
@@ -615,9 +615,9 @@ module Elasticsearch
                  [t[:id]]
                elsif (ts = Disease.condition_search(term)).present?
                  ts.map(&:id)
+               else
+                 []
                end
-
-      return if medgen.blank?
 
       query = Elasticsearch::DSL::Search.search do
         query do
