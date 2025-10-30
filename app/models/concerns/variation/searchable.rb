@@ -186,6 +186,11 @@ class Variation
               position: fields['vcf.position']&.first, # TODO: lift up nested field
               reference: fields['vcf.reference']&.first,
               alternate: fields['vcf.alternate']&.first,
+              vcf: {
+                position: fields['vcf.position']&.first, # TODO: lift up nested field
+                reference: fields['vcf.reference']&.first,
+                alternate: fields['vcf.alternate']&.first
+              },
               xref: Array(fields['xref']),
               conditions: (fields['conditions'] || []).map do |condition|
                 {
