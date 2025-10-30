@@ -41,7 +41,7 @@ class VariationSearchService
     if params[:formatter] == 'html'
       HtmlFormatter.new(params, search, user: @options[:user]).to_hash
     elsif params[:formatter] == 'jogo'
-      ResponseFormatter.new(params, search_all, @errors, user: @options[:user]).to_hash
+      ResponseFormatter.new(params, { results: Variation.search_for_jogo(query) }, @errors, user: @options[:user]).to_hash
     else
       ResponseFormatter.new(params, search, @errors, user: @options[:user], gene_order: ).to_hash
     end
@@ -117,84 +117,6 @@ class VariationSearchService
     hash.merge!(results: results) if @params[:data] != 0
 
     hash
-  end
-
-  MINIMAL_FIELDS = %w[
-    id
-    type
-    chromosome.index
-    chromosome.label
-    start
-    stop
-    reference
-    alternate
-    vcf.position
-    vcf.reference
-    vcf.alternate
-    conditions.source
-    conditions.id
-    conditions.condition.medgen
-    conditions.condition.pref_name
-    conditions.condition.classification
-    conditions.condition.submission_count
-  ]
-
-  def search_all
-    results = []
-
-    q = query
-    q[:size] = 10_000
-    q[:fields] = MINIMAL_FIELDS
-    q[:_source] = false
-    q.delete(:from)
-
-    while (res = Variation.search(q).records.results.results).present?
-      res.each do |r|
-        fields = r.delete(:fields)
-
-        r[:_source] = {
-          id: fields['id']&.first,
-          type: fields['type']&.first,
-          chromosome: {
-            index: fields['chromosome.index']&.first,
-            label: fields['chromosome.label']&.first
-          },
-          start: fields['start']&.first,
-          stop: fields['stop']&.first,
-          reference: fields['reference']&.first,
-          alternate: fields['alternate']&.first,
-          vcf: {
-            position: fields['vcf.position']&.first,
-            reference: fields['vcf.reference']&.first,
-            alternate: fields['vcf.alternate']&.first
-          },
-          conditions: (fields['conditions'] || []).map do |condition|
-            {
-              source: condition['source']&.first,
-              id: condition['id']&.first,
-              condition: (condition['condition'] || []).map do |x|
-                {
-                  medgen: x['medgen'],
-                  pref_name: x['pref_name'],
-                  classification: x['classification'],
-                  submission_count: x['submission_count']&.first
-                }
-              end
-            }
-          end
-        }
-      end
-
-      results.concat(res)
-
-      break if (last = res.last[:sort]).blank?
-
-      q[:search_after] = last
-    end
-
-    {
-      results: results,
-    }
   end
 
   def query

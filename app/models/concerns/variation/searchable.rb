@@ -140,6 +140,79 @@ class Variation
           end
         end.to_hash[:query]
       end
+
+      MINIMAL_FIELDS = %w[
+        id
+        type
+        chromosome.index
+        chromosome.label
+        start
+        stop
+        reference
+        alternate
+        xref.source
+        xref.id
+        vcf.position
+        vcf.reference
+        vcf.alternate
+        conditions.source
+        conditions.id
+        conditions.condition.medgen
+        conditions.condition.pref_name
+        conditions.condition.classification
+        conditions.condition.submission_count
+      ]
+
+      def search_for_jogo(query)
+        results = []
+
+        q = query
+        q[:size] = 10_000
+        q[:fields] = MINIMAL_FIELDS
+        q[:_source] = false
+        q.delete(:from)
+
+        while (res = search(q).records.results.results).present?
+          res.each do |r|
+            fields = r.delete(:fields)
+
+            r[:_source] = {
+              id: fields['id']&.first,
+              type: fields['type']&.first,
+              chromosome: {
+                index: fields['chromosome.index']&.first,
+                label: fields['chromosome.label']&.first
+              },
+              position: fields['vcf.position']&.first, # TODO: lift up nested field
+              reference: fields['vcf.reference']&.first,
+              alternate: fields['vcf.alternate']&.first,
+              xref: Array(fields['xref']),
+              conditions: (fields['conditions'] || []).map do |condition|
+                {
+                  source: condition['source']&.first,
+                  id: condition['id']&.first,
+                  condition: (condition['condition'] || []).map do |x|
+                    {
+                      medgen: x['medgen'],
+                      pref_name: x['pref_name'],
+                      classification: x['classification'],
+                      submission_count: x['submission_count']&.first
+                    }
+                  end
+                }
+              end
+            }
+          end
+
+          results.concat(res)
+
+          break if (last = res.last[:sort]).blank?
+
+          q[:search_after] = last
+        end
+
+        results
+      end
     end
   end
 end
