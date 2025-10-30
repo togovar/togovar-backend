@@ -191,8 +191,13 @@ class Variation
                 reference: fields['vcf.reference']&.first,
                 alternate: fields['vcf.alternate']&.first
               },
-              xref: Array(fields['xref']),
-              conditions: (fields['conditions'] || []).map do |condition|
+              xref: Array(fields['xref']).map do |xref|
+                {
+                  id: xref['id'].first,
+                  source: xref['source'].first
+                }
+              end,
+              conditions: Array(fields['conditions']).map do |condition|
                 {
                   source: condition['source']&.first,
                   id: condition['id']&.first,
