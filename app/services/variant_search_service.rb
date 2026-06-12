@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class VariationSearchService
+class VariantSearchService
   attr_reader :options
   attr_reader :debug
 
@@ -41,7 +41,7 @@ class VariationSearchService
     if params[:formatter] == 'html'
       HtmlFormatter.new(params, search, user: @options[:user]).to_hash
     elsif params[:formatter] == 'jogo'
-      ResponseFormatter.new(params, { results: Variation.search_for_jogo(query) }, @errors, user: @options[:user]).to_hash
+      ResponseFormatter.new(params, { results: Variant.search_for_jogo(query) }, @errors, user: @options[:user]).to_hash
     else
       ResponseFormatter.new(params, search, @errors, user: @options[:user], gene_order: ).to_hash
     end
@@ -58,11 +58,11 @@ class VariationSearchService
   end
 
   def results
-    Variation.search(query).records.results
+    Variant.search(query).records.results
   end
 
   def filtered_count
-    Variation.count(body: query.slice(:query))
+    Variant.count(body: query.slice(:query))
   end
 
   private
@@ -97,7 +97,7 @@ class VariationSearchService
 
   def model
     @model ||= begin
-                 search = TogoVar::API::VariationSearch.new(@params[:body])
+                 search = TogoVar::API::VariantSearch.new(@params[:body])
                  search.options = { user: @options[:user] }
 
                  search.model
@@ -108,10 +108,10 @@ class VariationSearchService
     hash = {}
 
     if @params[:stat] != 0
-      hash.merge!(total: Variation::QueryHelper.total(@options[:user]),
+      hash.merge!(total: Variant::QueryHelper.total(@options[:user]),
                   filtered: filtered_count,
-                  aggs: paging? ? {} : Variation.search(stat_query, request_cache: true).aggregations,
-                  count_condition_absence: Variation::QueryHelper.count_conditions_absence(model.to_hash))
+                  aggs: paging? ? {} : Variant.search(stat_query, request_cache: true).aggregations,
+                  count_condition_absence: Variant::QueryHelper.count_conditions_absence(model.to_hash))
     end
 
     hash.merge!(results: results) if @params[:data] != 0
@@ -133,7 +133,7 @@ class VariationSearchService
                       hash.update size: 0
                       hash.delete :from
                       hash.delete :sort
-                      hash.merge!(Variation::QueryHelper.statistics(@options[:user]))
+                      hash.merge!(Variant::QueryHelper.statistics(@options[:user]))
 
                       hash.tap { |h| debug[:stat_query] = h if @options[:debug] }
                     end

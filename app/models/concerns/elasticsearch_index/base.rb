@@ -3,48 +3,24 @@ module ElasticsearchIndex
     extend ActiveSupport::Concern
 
     module ClassMethods
-      def create_index_body(pretty: false)
-        hash = { settings: settings.to_hash, mappings: mappings.to_hash }
-
-        pretty ? JSON.pretty_generate(hash) : hash.to_json
+      def find(query)
+        search(query).first&.[]('_source')&.with_indifferent_access
       end
 
-      # @return [Integer] number of total records
+      # @option arguments [List] :body A query to restrict the results specified with the Query DSL
+      # @return [Integer] the number of the total records
       def count(arguments = {})
         arguments.merge!(index: index_name)
 
-        __elasticsearch__.client.count(arguments)&.dig('count')
+        client.count(arguments)&.[]('count')
       end
 
-      def find(*id)
-        query = Elasticsearch::DSL::Search.search do
-          query do
-            terms id: id
-          end
-        end
-
-        __elasticsearch__.search(query)
-      end
-
-      # @param [String,Integer] interval -1 to disable soft commit, nil to reset setting
-      def set_refresh_interval(interval = nil)
-        method = ::Elasticsearch::API::HTTP_PUT
-        path = "#{index_name}/_settings"
-        params = {}
-        body = {
-          index: {
-            refresh_interval: interval
-          }
-        }
-        headers = {
-          'Content-Type': 'application/json'
-        }
-
-        __elasticsearch__.client.perform_request(method, path, params, body, headers)
+      def search(query_or_payload, options={})
+        __elasticsearch__.search(query_or_payload, **options)
       end
 
       # @return [Elasticsearch::Transport::Client] elasticsearch client
-      def es
+      def client
         __elasticsearch__.client
       end
     end

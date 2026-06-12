@@ -86,9 +86,9 @@ module API
 
     def validate_query
       service = if request.get?
-                  VariationSearchService::QueryParameters.new(search_params, user: current_user)
+                  VariantSearchService::Query.new(search_params, user: current_user)
                 else
-                  VariationSearchService.new(search_params, user: current_user)
+                  VariantSearchService.new(search_params, user: current_user)
                 end
 
       service.validate
@@ -130,9 +130,9 @@ module API
           params[:offset] = params[:body][:offset] = offset if offset.present?
 
           service = if request.get?
-                      VariationSearchService::QueryParameters.new(params, user: current_user)
+                      VariantSearchService::Query.new(params, user: current_user)
                     else
-                      VariationSearchService.new(params, user: current_user)
+                      VariantSearchService.new(params, user: current_user)
                     end
 
           break if (res = service.results.to_a).blank?
@@ -240,16 +240,16 @@ module API
       polyphen = vep.map { |x| x[:polyphen] }.compact.max
       alpha_misssense = vep.map { |x| x[:alpha_misssense] }.compact.max
 
-      conditions = Hash.new { |hash, key| hash[key] = Disease.find(key).results.first&.dig('_source', 'name') }
+      conditions = Hash.new { |hash, key| hash[key] = Disease.find(key)&.[](:name) }
       condition = Array(result.dig(:conditions)).map do |x|
         {
           source: x[:source],
           id: x[:id],
           condition: Array(x[:condition]).map do |y|
             {
-              medgen: Array(y[:medgen]).map { |v| { name: conditions[v] || ClinicalSignificance::LABEL_NOT_PROVIDED, medgen: v } },
+              medgen: Array(y[:medgen]).map { |v| { name: conditions[v] || QueryParameters::ClinicalSignificance::LABEL_NOT_PROVIDED, medgen: v } },
               pref_name: y[:pref_name],
-              classification: Array(y[:classification]).filter_map { |v| ClinicalSignificance.find_by_id(v.tr(',', '').tr(' ', '_').to_sym)&.label },
+              classification: Array(y[:classification]).filter_map { |v| QueryParameters::ClinicalSignificance.find_by_id(v)&.label },
               submission_count: y[:submission_count]
             }.compact
           end
@@ -281,15 +281,15 @@ module API
       data[:consequence] = consequences.presence if columns.include?(:consequence)
       data[:condition] = condition.presence if columns.include?(:condition)
       if columns.include?(:sift)
-        data[:sift_qualitative_prediction] = sift ? Sift.find_by_value(sift).label : nil
+        data[:sift_qualitative_prediction] = sift ? QueryParameters::Sift.find_by_value(sift)&.label : nil
         data[:sift_score] = sift
       end
       if columns.include?(:polyphen)
-        data[:polyphen2_qualitative_prediction] = polyphen ? Polyphen.find_by_value(polyphen).label : nil
+        data[:polyphen2_qualitative_prediction] = polyphen ? QueryParameters::Polyphen.find_by_value(polyphen).label : nil
         data[:polyphen2_score] = polyphen
       end
       if columns.include?(:alphamissense)
-        data[:alphamissense_pathogenicity] = alpha_misssense ? AlphaMissense.find_by_value(alpha_misssense).label : nil
+        data[:alphamissense_pathogenicity] = alpha_misssense ? QueryParameters::AlphaMissense.find_by_value(alpha_misssense)&.label : nil
         data[:alphamissense_score] = alpha_misssense
       end
 
@@ -307,10 +307,8 @@ module API
         end
       end
 
-      frequencies = Variation.frequency_datasets(current_user).map do |source|
-        # TODO: remove if dataset renamed
-        data = frequencies.find { |x| x[:source] == (source == :jga_wes ? :jga_ngs : source).to_s } || {}
-        # data = frequencies.find { |x| x[:source] == source.to_s } || {}
+      frequencies = Variant.frequency_datasets(current_user).map do |source|
+        data = frequencies.find { |x| x[:source] == source.to_s } || {}
 
         filters = Array(data[:filter])
         filters = filters.join(ITEMS_SEPARATOR) if type == :csv

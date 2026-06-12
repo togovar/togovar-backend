@@ -3,9 +3,12 @@ shared:
     xref: &xref
       dbsnp: "https://identifiers.org/dbsnp/%<id>s"
       tommo: 'https://jmorp.megabank.tohoku.ac.jp/search'
+      jogo: 'https://jogo.csml.org/gt-summary-with-hap-exact?chr=%<chr>s&start=%<start>s&end=%<stop>s'
       gnomad: 'https://gnomad.broadinstitute.org/variant/%<id>s?dataset=gnomad_r4'
+      gnomad_sv: 'https://gnomad.broadinstitute.org/variant/%<id>s?dataset=gnomad_sv_r4'
       clinvar: 'https://www.ncbi.nlm.nih.gov/clinvar/variation/%<id>s'
       mgend: 'https://mgend.jihs.go.jp/variant/info/%<id>s'
+      sscv_db: 'https://sscvdb.io/variant/%<id>s'
     datasets:
       frequency:
         - &gem_j_wga
@@ -36,6 +39,40 @@ shared:
             - id: jga_wgs.jgad000689
               authorization:
                 id: jga_dataset
+            - id: jga_wgs.jgad000758
+              filter: true
+              api:
+                description: "BBJ1k"
+              download:
+                ac: allele_alt
+                an: allele_total
+                af: alt_allele_freq
+                aac: genotype_alt/alt
+                arc: genotype_ref/alt
+                aoc: genotype_alt/other_alts
+                rrc: genotype_ref/ref
+                roc: genotype_ref/other_alts
+                ooc: genotype_other_alts/other_alts
+                hac: genotype_hemi_alt
+                hrc: genotype_hemi_ref
+                hoc: genotype_hemi_othre_alts
+            - id: jga_wgs.jgad000868
+              filter: true
+              api:
+                description: "BBJ2k"
+              download:
+                ac: allele_alt
+                an: allele_total
+                af: alt_allele_freq
+                aac: genotype_alt/alt
+                arc: genotype_ref/alt
+                aoc: genotype_alt/other_alts
+                rrc: genotype_ref/ref
+                roc: genotype_ref/other_alts
+                ooc: genotype_other_alts/other_alts
+                hac: genotype_hemi_alt
+                hrc: genotype_hemi_ref
+                hoc: genotype_hemi_othre_alts
           download:
             ac: allele_alt
             an: allele_total
@@ -49,6 +86,12 @@ shared:
             hac: genotype_hemi_alt
             hrc: genotype_hemi_ref
             hoc: genotype_hemi_othre_alts
+        - id: bbj1k
+          label: BBJ1k
+          alias: jga_wgs.jgad000758
+        - id: bbj2k
+          label: BBJ2k
+          alias: jga_wgs.jgad000868
         - &jga_wes
           id: jga_wes
           label: JGA WES
@@ -205,7 +248,7 @@ shared:
           label: ToMMo 54KJPN
           filter: true
           api:
-            description: "[ToMMo 54KJPN Allele Frequency Panel](https://jmorp.megabank.tohoku.ac.jp/downloads/tommo-54kjpn-20230626-af_snvindelall)"
+            description: "[ToMMo 61KJPN-SNV/INDEL Allele Frequency Panel (v20250616)](https://jmorp.megabank.tohoku.ac.jp/downloads/tommo-61kjpn-20250616-af_snvindelall)"
           download:
             ac: allele_alt
             an: allele_total
@@ -290,6 +333,44 @@ shared:
             ac: allele_alt
             an: allele_total
             af: alt_allele_freq
+        - id: jogo
+          label: JoGo
+          filter: true
+          api:
+            description: "JoGo: Joint Open Genome and Omics Platform"
+          download:
+            ac: allele_alt
+            an: allele_total
+            af: alt_allele_freq
+        - id: tommo_jsv1
+          label: ToMMo JSV1
+          filter: true
+          api:
+            description: "[JSV1 allele frequency panel (v20211208)](https://jmorp.megabank.tohoku.ac.jp/downloads/tommo-jsv1-20211208-af)"
+          download:
+            ac: allele_alt
+            an: allele_total
+            af: alt_allele_freq
+        - id: gnomad_sv
+          label: gnomAD SV
+          filter: true
+          api:
+            description: "[The Genome Aggregation Database (gnomAD SV)](https://gnomad.broadinstitute.org)"
+          groups:
+            - gnomad_sv.afr
+            - gnomad_sv.ami
+            - gnomad_sv.amr
+            - gnomad_sv.asj
+            - gnomad_sv.eas
+            - gnomad_sv.fin
+            - gnomad_sv.mid
+            - gnomad_sv.nfe
+            - gnomad_sv.rmi
+            - gnomad_sv.sas
+          download:
+            ac: allele_alt
+            an: allele_total
+            af: alt_allele_freq
       condition:
         - id: clinvar
           label: ClinVar
@@ -300,48 +381,43 @@ shared:
           api:
             description: "[Clinical significance of variants](https://mgend.ncgm.go.jp)"
     query_params: &query_params
-      frequency:
-        - id: from
-          label: From
-          key: from
-          default: '0.0'
-        - id: to
-          label: To
-          key: to
-          default: '1.0'
-        - id: invert
-          label: Invert
-          key: invert
-          default: '0'
-        - id: match
-          label: Match
-          key: match
-          default: 'any'
       type:
-        - id: snv
+        - id: SNV
           label: SNV
           key: SO_0001483
           default: '1'
-        - id: insertion
+        - id: INS
           label: Insertion
           key: SO_0000667
           default: '1'
-        - id: deletion
+        - id: DEL
           label: Deletion
           key: SO_0000159
           default: '1'
-        - id: indel
+        - id: INDEL
           label: Indel
           key: SO_1000032
           default: '1'
-        - id: substitution
-          label: Substitution
+        - id: MNV
+          label: MNV
           key: SO_1000002
           default: '1'
+        - id: DUP
+          label: Duplication
+          key: SO_1000035
+          default: '1'
+        - id: INV
+          label: Inversion
+          key: SO_1000036
+          default: '1'
+        - id: BND
+          label: Breakend
+          key: SO_0001021
+          default: '1'
       significance:
-        - id: not_in_clinvar
-          label: Not in ClinVar
-          key: NC
+        - id: not_available
+          label: Not available
+          key: NA
           default: '1'
         - id: pathogenic
           label: Pathogenic
@@ -403,9 +479,9 @@ shared:
           label: Likely benign
           key: LB
           default: '1'
-        - id: conflicting_interpretations_of_pathogenicity
-          label: Conflicting interpretations of pathogenicity
-          key: CI
+        - id: conflicting_classifications_of_pathogenicity
+          label: Conflicting classifications of pathogenicity
+          key: CC
           default: '1'
         - id: association_not_found
           label: Association not found
@@ -415,9 +491,25 @@ shared:
           label: Other
           key: O
           default: '1'
+        - id: vus_high
+          label: VUS-high
+          key: VH
+          default: '1'
+        - id: vus_mid
+          label: VUS-mid
+          key: VM
+          default: '1'
+        - id: vus_low
+          label: VUS-low
+          key: VL
+          default: '1'
         - id: uncertain_significance
           label: Uncertain significance
           key: US
+          default: '1'
+        - id: no_classification
+          label: No classification
+          key: NC
           default: '1'
         - id: not_provided
           label: Not provided
@@ -456,6 +548,14 @@ shared:
           label: Transcript amplification
           key: SO_0001889
           default: '1'
+        - id: feature_elongation
+          label: Feature elongation
+          key: SO_0001907
+          default: '1'
+        - id: feature_truncation
+          label: Feature truncation
+          key: SO_0001906
+          default: '1'
         - id: inframe_insertion
           label: Inframe insertion
           key: SO_0001821
@@ -472,9 +572,21 @@ shared:
           label: Protein altering variant
           key: SO_0001818
           default: '1'
+        - id: splice_donor_5th_base_variant
+          label: Splice donor 5th base variant
+          key: SO_0001787
+          default: '1'
         - id: splice_region_variant
           label: Splice region variant
           key: SO_0001630
+          default: '1'
+        - id: splice_donor_region_variant
+          label: Splice donor region variant
+          key: SO_0002170
+          default: '1'
+        - id: splice_polypyrimidine_tract_variant
+          label: Splice polypyrimidine tract variant
+          key: SO_0002169
           default: '1'
         - id: incomplete_terminal_codon_variant
           label: Incomplete terminal codon variant
@@ -496,15 +608,15 @@ shared:
           label: Coding sequence variant
           key: SO_0001580
           default: '1'
-        - id: mature_mirna_variant
+        - id: mature_miRNA_variant
           label: Mature miRNA variant
           key: SO_0001620
           default: '1'
-        - id: five_prime_utr_variant
+        - id: 5_prime_UTR_variant
           label: 5 prime UTR variant
           key: SO_0001623
           default: '1'
-        - id: three_prime_utr_variant
+        - id: 3_prime_UTR_variant
           label: 3 prime UTR variant
           key: SO_0001624
           default: '1'
@@ -516,13 +628,17 @@ shared:
           label: Intron variant
           key: SO_0001627
           default: '1'
-        - id: nmd_transcript_variant
+        - id: NMD_transcript_variant
           label: NMD transcript variant
           key: SO_0001621
           default: '1'
         - id: non_coding_transcript_variant
           label: Non coding transcript variant
           key: SO_0001619
+          default: '1'
+        - id: coding_transcript_variant
+          label: Coding transcript variant
+          key: SO_0001968
           default: '1'
         - id: upstream_gene_variant
           label: Upstream gene variant
@@ -532,41 +648,54 @@ shared:
           label: Downstream gene variant
           key: SO_0001632
           default: '1'
-        - id: tfbs_ablation
+        - id: TFBS_ablation
           label: TFBS ablation
           key: SO_0001895
           default: '1'
-        - id: tfbs_amplification
+        - id: TFBS_amplification
           label: TFBS amplification
           key: SO_0001892
           default: '1'
-        - id: tf_binding_site_variant
+        - id: TF_binding_site_variant
           label: TF binding site variant
           key: SO_0001782
           default: '1'
         - id: regulatory_region_ablation
-          label: Regulatory region ablation
+          label: TF binding site variant
           key: SO_0001894
           default: '1'
         - id: regulatory_region_amplification
-          label: Regulatory region amplification
+          label: Regulatory region ablation
           key: SO_0001891
           default: '1'
-        - id: feature_elongation
-          label: Feature elongation
-          key: SO_0001907
-          default: '1'
         - id: regulatory_region_variant
-          label: Regulatory region variant
+          label: Regulatory region amplification
           key: SO_0001566
-          default: '1'
-        - id: feature_truncation
-          label: Feature truncation
-          key: SO_0001906
           default: '1'
         - id: intergenic_variant
           label: Intergenic variant
           key: SO_0001628
+          default: '1'
+        - id: sequence_variant
+          label: Sequence variant
+          key: SO_0001060
+          default: '1'
+      sscv_db:
+        - id: Partial_exon_loss
+          label: Partial exon loss
+          key: PEL
+          default: '1'
+        - id: Cryptic_exon_inclusion
+          label: Cryptic exon inclusion
+          key: CEI
+          default: '1'
+        - id: Exon_extension
+          label: Exon extension
+          key: EE
+          default: '1'
+        - id: Ambiguous
+          label: Ambiguous
+          key: A
           default: '1'
       sift:
         - id: without_score
@@ -619,6 +748,23 @@ shared:
           label: Likely benign
           key: LB
           default: '1'
+      frequency:
+        - id: from
+          label: From
+          key: from
+          default: '0.0'
+        - id: to
+          label: To
+          key: to
+          default: '1.0'
+        - id: invert
+          label: Invert
+          key: invert
+          default: '0'
+        - id: match
+          label: Match
+          key: match
+          default: 'any'
 
   GRCh37:
     xref:

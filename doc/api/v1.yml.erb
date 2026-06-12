@@ -1017,7 +1017,7 @@ components:
             <%= "* `#{x[:id]}` - #{x.dig(:api, :description)}" %>
             <% end %>
           enum:
-          <% (@current_user ? Variation.accessible_datasets(@current_user)[:frequency] : config).each do |x| %>
+          <% (@current_user ? Variant.accessible_datasets(@current_user)[:frequency] : config).each do |x| %>
             <%= "- #{x[:id]}" %>
             <% if (groups = x[:groups]).present? %>
               <% groups.each do |g| %>

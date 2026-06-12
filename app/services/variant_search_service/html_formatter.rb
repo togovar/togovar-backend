@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class VariationSearchService
+class VariantSearchService
   class HtmlFormatter
     ALLELE_MAX_LENGTH = 4
 
@@ -121,7 +121,7 @@ class VariationSearchService
     end
 
     def frequencies(result)
-      items = Variation.frequency_datasets(@options[:user]).map do |id|
+      items = Variant.frequency_datasets(@options[:user]).map do |id|
         v = result.dig(:frequency)&.find { |x| x[:source] == id.to_s } || {}
         level = level(v[:ac], v[:af])
 
@@ -138,24 +138,32 @@ class VariationSearchService
     end
 
     def sift(result)
-      return if (sift = Array(result[:vep]).map { |x| x[:sift] }.compact).blank?
+      return if (v = Array(result[:vep]).map { |x| x[:sift] }.compact).blank?
 
-      prediction = Sift.find_by_value(sift.min)
+      prediction = QueryParameters::Sift.find_by_value(v.min)
 
-      %Q[<div class="sift"#{ %Q[ data-remains="#{sift.size - 1}"] if sift.size > 1 }><div class="variant-function" data-function="#{prediction&.key}">#{sift.min&.round(3)}</div></div>]
+      %Q[<div class="sift"#{ %Q[ data-remains="#{v.size - 1}"] if v.size > 1 }><div class="variant-function" data-function="#{prediction&.key}">#{v.min&.round(3)}</div></div>]
     end
 
     def polyphen(result)
-      return if (polyphen = Array(result[:vep]).map { |x| x[:polyphen] }.compact).blank?
+      return if (v = Array(result[:vep]).map { |x| x[:polyphen] }.compact).blank?
 
-      prediction = Polyphen.find_by_value(polyphen.max)
+      prediction = QueryParameters::Polyphen.find_by_value(v.max)
 
-      %Q[<div class="polyphen"#{ %Q[ data-remains="#{polyphen.size - 1}"] if polyphen.size > 1 }><div class="variant-function" data-function="#{prediction&.key}">#{polyphen.max&.round(3)}</div></div>]
+      %Q[<div class="polyphen"#{ %Q[ data-remains="#{v.size - 1}"] if v.size > 1 }><div class="variant-function" data-function="#{prediction&.key}">#{v.max&.round(3)}</div></div>]
+    end
+
+    def alphamissense(result)
+      return if (v = Array(result[:vep]).map { |x| x[:alphamissense] }.compact).blank?
+
+      prediction = QueryParameters::AlphaMissense.find_by_value(v.max)
+
+      %Q[<div class="alphamissense"#{ %Q[ data-remains="#{v.size - 1}"] if v.size > 1 }><div class="variant-function" data-function="#{prediction&.key}">#{v.max&.round(3)}</div></div>]
     end
 
     def conditions
       @conditions ||= Hash.new do |hash, key|
-        hash[key] = Disease.find(key).results.first&.dig('_source', 'name')
+        hash[key] = Disease.find(key)&.[](:name)
       end
     end
 
@@ -163,7 +171,7 @@ class VariationSearchService
       return if (items = Array(result.dig(:clinvar, :conditions))).blank?
       return if (medgen = Array(items.first[:medgen]).first).blank?
 
-      condition = Disease.find(medgen).results.first&.dig('_source', 'name') || CLINVAR_CONDITION_NOT_PROVIDED
+      condition = Disease.find(medgen)&.[](:name) || CLINVAR_CONDITION_NOT_PROVIDED
       interpretation = items.first[:interpretation].first
 
       %Q[<div class="clinical_significance"#{ %Q[ data-remains="#{items.size - 1}"] if items.size > 1 }><div href="" class="clinical-significance" data-sign="#{interpretation}"></div><a>#{condition}</a></div>]
@@ -182,6 +190,7 @@ class VariationSearchService
         json.consequence consequence(r)
         json.sift sift(r)
         json.polyphen polyphen(r)
+        json.alphamissense alphamissense(r)
         json.significance significance(r)
       end
     end

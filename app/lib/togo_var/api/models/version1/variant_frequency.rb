@@ -4,7 +4,7 @@ module TogoVar
   module API
     module Models
       module Version1
-        class VariationFrequency < Base
+        class VariantFrequency < Base
           self.key_name = :frequency
 
           attr_reader :dataset

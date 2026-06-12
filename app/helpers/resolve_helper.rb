@@ -4,22 +4,22 @@ module ResolveHelper
       query do
         bool do
           must do
-            match 'chromosome.label': chr.to_s
+            match 'chromosome': chr.to_s
           end
           must do
-            match 'vcf.position': pos.to_i
+            match 'position_start': pos.to_i
           end
           must do
-            match 'vcf.reference': ref.to_s
+            match 'reference': ref.to_s
           end
           must do
-            match 'vcf.alternate': alt.to_s
+            match 'alternate': alt.to_s
           end
         end
       end
     end
 
-    Variation.search(query).results
+    Variant.search(query).results
   end
 
   def search_by_rs(id)
@@ -41,7 +41,7 @@ module ResolveHelper
       end
     end
 
-    Variation.search(query).results
+    Variant.search(query).results
   end
 
   def find_by_symbol(symbol)

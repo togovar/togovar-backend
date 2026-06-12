@@ -41,7 +41,7 @@ module API
 
         @variant_params ||= params.permit :term, :quality, :limit, :offset, :stat, :data, :debug, :expand_dataset,
                                           dataset: {}, frequency: {}, type: {}, significance: {}, consequence: {},
-                                          sift: {}, polyphen: {}, alphamissense: {}
+                                          sscv_db: {}, sift: {}, polyphen: {}, alphamissense: {}, cadd_phred: {}
       end
 
       # @return [Array] [result, status]
@@ -50,7 +50,7 @@ module API
 
         params = variant_params
 
-        service = VariationSearchService::QueryParameters.new(params.to_h, debug: params.key?(:debug), user: current_user)
+        service = VariantSearchService::Query.new(params.to_h, debug: params.key?(:debug), user: current_user)
 
         execute(service).tap { |r, _| r.update(debug: service.debug) if params.key?(:debug) }
       end
@@ -74,7 +74,7 @@ module API
     def search_variant
       params = variant_params
 
-      service = VariationSearchService.new(params.to_h, headers: request_headers, debug: params.key?(:debug), user: current_user)
+      service = VariantSearchService.new(params.to_h, headers: request_headers, debug: params.key?(:debug), user: current_user)
 
       execute(service).tap { |r, _| r.update(debug: service.debug) if params.key?(:debug) }
     end

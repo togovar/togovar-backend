@@ -4,15 +4,15 @@ module TogoVar
   module API
     module Models
       module Version1
-        class VariationSearch < Base
+        class VariantSearch < Base
           ACCEPTABLE_COMPONENTS = { id: Id,
                                     location: Location,
-                                    type: VariationType,
-                                    consequence: VariationConsequence,
+                                    type: VariantType,
+                                    consequence: VariantConsequence,
                                     sift: Sift,
                                     polyphen: Polyphen,
                                     alphamissense: AlphaMissense,
-                                    frequency: VariationFrequency,
+                                    frequency: VariantFrequency,
                                     significance: ClinicalSignificance,
                                     gene: Gene,
                                     disease: Disease,
@@ -83,10 +83,8 @@ module TogoVar
             validate
 
             user = @options[:user]
-            source = Variation.frequency_datasets(user).map do |x| # TODO: remove if dataset renamed
+            source = Variant.frequency_datasets(user).map do |x|
               case x.to_s
-              when 'jga_wes'
-                :jga_ngs
               when /^bbj_riken.mpheno\d+$/
                 :"#{x}.all"
               else
@@ -97,7 +95,7 @@ module TogoVar
             query = Elasticsearch::DSL::Search.search do
               query do
                 bool do
-                  must Variation.default_condition
+                  must Variant.default_condition
                   must do
                     bool do
                       should do
@@ -112,7 +110,7 @@ module TogoVar
                         nested do
                           path :conditions
                           query do
-                            terms 'conditions.source': Variation.condition_datasets(user)
+                            terms 'conditions.source': Variant.condition_datasets(user)
                           end
                         end
                       end
@@ -131,10 +129,10 @@ module TogoVar
             hash = Elasticsearch::DSL::Search.search do
               query query
               sort do
-                by :'chromosome.index'
-                by :'vcf.position'
-                by :'vcf.reference'
-                by :'vcf.alternate'
+                by :'chromosome_index'
+                by :'position_start'
+                by :'reference'
+                by :'alternate'
               end
               size limit
               from offset if offset.is_a?(Numeric)
@@ -182,7 +180,7 @@ module TogoVar
             protected
 
             def acceptable_components
-              VariationSearch::ACCEPTABLE_COMPONENTS
+              VariantSearch::ACCEPTABLE_COMPONENTS
             end
 
             private

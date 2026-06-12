@@ -1,4 +1,4 @@
-module Elasticsearch
+class VariantSearchService
   class QueryBuilder
     include Elasticsearch::DSL
 
@@ -73,23 +73,29 @@ module Elasticsearch
       self
     end
 
-    def dataset(names, filter: true)
+    def dataset(datasets, significance)
       @dataset_condition = nil
 
-      return self if (names & Variation.all_datasets(@options[:user])).empty?
+      user = @options[:user]
+      filter = @options[:filter]
+
+      return self if (datasets & Variant.all_datasets(user)).empty?
+
+      interpretations = significance.filter_map { |x| QueryParameters::ClinicalSignificance.find_by_key(x)&.id }
+      Rails.logger.info "Interpretations: #{interpretations}"
 
       query = Elasticsearch::DSL::Search.search do
         query do
           bool do
             if filter
-              if (v = names & Variation.frequency_datasets(@options[:user], filter: true)).present?
+              if (v = datasets & Variant.frequency_datasets(user, filter: true)).present?
                 should do
                   nested do
                     path :frequency
                     query do
                       bool do
                         must do
-                          terms 'frequency.source': v.map { |x| x == :jga_wes ? :jga_ngs : x } # TODO: remove if dataset renamed
+                          terms 'frequency.source': Variant.resolve_alias(user, v)
                         end
                         must do
                           match 'frequency.filter': 'PASS'
@@ -99,35 +105,48 @@ module Elasticsearch
                   end
                 end
               end
-              if (v = names & Variation.frequency_datasets(@options[:user], filter: false)).present?
+              if (v = datasets & Variant.frequency_datasets(user, filter: false)).present?
                 should do
                   nested do
                     path :frequency
                     query do
-                      terms 'frequency.source': v.map { |x| x == :jga_wes ? :jga_ngs : x } # TODO: remove if dataset renamed
+                      terms 'frequency.source': Variant.resolve_alias(user, v)
                     end
                   end
                 end
               end
             else
-              if (v = names & Variation.frequency_datasets(@options[:user])).present?
+              if (v = datasets & Variant.frequency_datasets(user)).present?
                 should do
                   nested do
                     path :frequency
                     query do
-                      terms 'frequency.source': v.map { |x| x == :jga_wes ? :jga_ngs : x } # TODO: remove if dataset renamed
+                      terms 'frequency.source': Variant.resolve_alias(user, v)
                     end
                   end
                 end
               end
-            end
-
-            if (v = names & Variation.condition_datasets(@options[:user])).present?
-              should do
-                nested do
-                  path :conditions
-                  query do
-                    terms 'conditions.source': v
+              if (v = datasets & Variant.condition_datasets(user)).present?
+                should do
+                  nested do
+                    path :conditions
+                    query do
+                      terms 'conditions.source': v
+                    end
+                  end
+                end
+                if interpretations.include?('not_available')
+                  should do
+                    bool do
+                      must_not do
+                        nested do
+                          path 'conditions'
+                          query do
+                            exists field: 'conditions'
+                          end
+                        end
+                      end
+                    end
                   end
                 end
               end
@@ -148,7 +167,7 @@ module Elasticsearch
     def frequency(datasets, frequency_from, frequency_to, invert = false, all_datasets = false)
       @frequency_condition = nil
 
-      sources = datasets & Variation.frequency_datasets(@options[:user])
+      sources = datasets & Variant.frequency_datasets(@options[:user])
 
       return self if sources.empty?
 
@@ -156,9 +175,6 @@ module Elasticsearch
         query do
           bool do
             sources.each do |source|
-              # TODO: remove if dataset renamed
-              source = :jga_ngs if source == :jga_wes
-
               send(all_datasets ? :must : :should) do
                 nested do
                   path :frequency
@@ -213,23 +229,27 @@ module Elasticsearch
     def significance(*values)
       @significance_condition = nil
 
-      interpretations = values.filter_map { |x| ClinicalSignificance.find_by_key(x)&.label&.downcase.gsub(' ', '_') }
+      interpretations = values.filter_map { |x| QueryParameters::ClinicalSignificance.find_by_key(x)&.id }
 
-      return self if !values.include?(:NC) && interpretations.blank?
+      return self if !values.include?(:NA) && interpretations.blank?
 
       @significance_condition = Elasticsearch::DSL::Search.search do
         query do
           bool do
-            if values.include?(:NC)
+            if interpretations.delete('not_available')
               should do
                 bool do
                   must_not do
-                    exists field: :conditions
+                    nested do
+                      path 'conditions'
+                      query do
+                        exists field: 'conditions'
+                      end
+                    end
                   end
                 end
               end
             end
-
             if interpretations.present?
               should do
                 nested do
@@ -256,10 +276,31 @@ module Elasticsearch
 
       @consequence_condition = Elasticsearch::DSL::Search.search do
         query do
+          terms 'vep.consequence': consequence
+        end
+      end.to_hash[:query]
+
+      self
+    end
+
+    def sscv_db(*values)
+      @sscv_db_condition = nil
+
+      values &= QueryParameters::SscvDb.parameters
+
+      return self if values.empty?
+
+      values = values.map { |v| QueryParameters::SscvDb.find_by_key(v)&.key }
+                     .compact
+
+      ::Rails.logger.info "SSCV DB: #{values}"
+
+      @sscv_db_condition = Elasticsearch::DSL::Search.search do
+        query do
           nested do
-            path :vep
+            path :sscv_db
             query do
-              terms 'vep.consequence': consequence
+              terms 'sscv_db.predicted_splicing_type': values
             end
           end
         end
@@ -271,7 +312,7 @@ module Elasticsearch
     def sift(*values)
       @sift_condition = nil
 
-      values &= [:N, :D, :T]
+      values &= QueryParameters::Sift.parameters
 
       return self if values.empty?
 
@@ -309,7 +350,7 @@ module Elasticsearch
     def polyphen(*values)
       @polyphen_condition = nil
 
-      values &= [:N, :PROBD, :POSSD, :B, :U]
+      values &= QueryParameters::Polyphen.parameters
 
       return self if values.empty?
 
@@ -354,7 +395,7 @@ module Elasticsearch
     def alphamissense(*values)
       @alphamissense_condition = nil
 
-      values &= [:N, :LP, :A, :LB]
+      values &= QueryParameters::AlphaMissense.parameters
 
       return self if values.empty?
 
@@ -411,7 +452,7 @@ module Elasticsearch
       query.delete(:from)
       query.delete(:sort)
 
-      query.merge(Variation::QueryHelper.statistics(@options[:user]))
+      query.merge(Variant::QueryHelper.statistics(@options[:user]))
     end
 
     def build
@@ -424,6 +465,7 @@ module Elasticsearch
       conditions << @type_condition
       conditions << @significance_condition
       conditions << @consequence_condition
+      conditions << @sscv_db_condition
       conditions << @sift_condition
       conditions << @polyphen_condition
       conditions << @alphamissense_condition
@@ -442,7 +484,7 @@ module Elasticsearch
       else
         query[:from] = @from unless @from.zero?
       end
-      query[:sort] = %w[chromosome.index vcf.position vcf.reference vcf.alternate] if @sort
+      query[:sort] = %w[chromosome_index position_start reference alternate] if @sort
 
       query
     end
@@ -450,52 +492,7 @@ module Elasticsearch
     private
 
     def default_condition
-      Variation.default_condition
-    end
-
-    def aggregations
-      Elasticsearch::DSL::Search.search do
-        aggregation :type do
-          terms field: :type, size: Variation.cardinality[:types]
-        end
-
-        aggregation :vep do
-          nested do
-            path :vep
-            aggregation :consequence do
-              terms field: 'vep.consequence', size: Variation.cardinality[:vep_consequences]
-            end
-          end
-        end
-
-        aggregation :conditions_condition do
-          nested do
-            path 'conditions.condition'
-            aggregation :classification do
-              terms field: 'conditions.condition.classification',
-                    size: Variation.cardinality[:condition_classifications]
-            end
-          end
-        end
-
-        aggregation :frequency do
-          nested do
-            path :frequency
-            aggregation :source do
-              terms field: 'frequency.source', size: Variation.cardinality[:frequency_sources]
-            end
-          end
-        end
-
-        aggregation :condition do
-          nested do
-            path :condition
-            aggregation :source do
-              terms field: 'conditions.source', size: Variation.cardinality[:condition_sources]
-            end
-          end
-        end
-      end
+      Variant.default_condition
     end
 
     def tgv_condition(term)
@@ -534,27 +531,26 @@ module Elasticsearch
       query = Elasticsearch::DSL::Search.search do
         query do
           bool do
-            must { match 'chromosome.label': chr }
+            must { match 'chromosome': chr }
             must do
               bool do
-                # TODO: use position.left and position.right
                 should do
                   bool do
-                    must { range(:start) { lte from.to_i } }
-                    must { range(:stop) { gte to.to_i } }
+                    must { range(:position_start) { lte from.to_i } }
+                    must { range(:position_end) { gte to.to_i } }
                   end
                 end
                 should do
                   bool do
-                    must { range(:start) { gte from.to_i } }
-                    must { range(:stop) { lte to.to_i } }
+                    must { range(:position_start) { gte from.to_i } }
+                    must { range(:position_end) { lte to.to_i } }
                   end
                 end
                 should do
                   bool do
-                    must { range(:start) { lte from.to_i } }
+                    must { range(:position_start) { lte from.to_i } }
                     must do
-                      range(:stop) do
+                      range(:position_end) do
                         gte from.to_i
                         lte to.to_i
                       end
@@ -564,12 +560,12 @@ module Elasticsearch
                 should do
                   bool do
                     must do
-                      range(:start) do
+                      range(:position_start) do
                         gte from.to_i
                         lte to.to_i
                       end
                     end
-                    must { range(:stop) { gt from.to_i } }
+                    must { range(:position_end) { gt from.to_i } }
                   end
                 end
               end
@@ -586,24 +582,7 @@ module Elasticsearch
     def gene_condition(term)
       query = Elasticsearch::DSL::Search.search do
         query do
-          bool do
-            must do
-              nested do
-                path 'vep'
-                query do
-                  terms 'vep.hgnc_id': Array(term)
-                end
-              end
-            end
-            must do
-              nested do
-                path :'vep.symbol'
-                query do
-                  terms 'vep.symbol.source': %w[HGNC EntrezGene]
-                end
-              end
-            end
-          end
+          terms 'gene.id': Array(term)
         end
       end
 

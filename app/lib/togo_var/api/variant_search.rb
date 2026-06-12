@@ -2,7 +2,7 @@
 
 module TogoVar
   module API
-    class VariationSearch
+    class VariantSearch
       module Defaults
         VERSION = '1'
       end
@@ -19,7 +19,7 @@ module TogoVar
       end
 
       def model
-        model = Models::Version1::VariationSearch.new(*@args, **@hash)
+        model = Models::Version1::VariantSearch.new(*@args, **@hash)
         model.options = options
 
         model

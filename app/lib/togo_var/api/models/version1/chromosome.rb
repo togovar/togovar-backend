@@ -32,7 +32,7 @@ module TogoVar
 
             Elasticsearch::DSL::Search.search do
               query do
-                match 'chromosome.label': name
+                match 'chromosome': name
               end
             end.to_hash[:query]
           end

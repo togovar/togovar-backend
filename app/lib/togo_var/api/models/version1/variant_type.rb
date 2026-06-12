@@ -4,7 +4,7 @@ module TogoVar
   module API
     module Models
       module Version1
-        class VariationType < StrictTerms
+        class VariantType < StrictTerms
           self.key_name = :type
 
           ACCEPTABLE_TERMS = %w[

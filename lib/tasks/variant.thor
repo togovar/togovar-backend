@@ -81,7 +81,7 @@ module Tasks
       retry_count = 0
 
       begin
-        ::Variation.count(body: query.to_hash)
+        ::Variant.count(body: query.to_hash)
       rescue StandardError => e
         raise e if (retry_count += 1) > 5
         warn "#{e.message} / Retry after #{2 ** retry_count} seconds"
@@ -109,7 +109,7 @@ module Tasks
       retry_count = 0
 
       response = begin
-                   ::Variation.search(query.to_hash)
+                   ::Variant.search(query.to_hash)
                  rescue StandardError => e
                    raise e if (retry_count += 1) > 5
                    warn "#{e.message} / Retry after #{2 ** retry_count} seconds"

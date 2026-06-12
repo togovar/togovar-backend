@@ -18,11 +18,11 @@ module TogoVar
 
             arg = @args.first
 
-            @terms = Array(arg[:terms]).filter_map { |x| (::ClinicalSignificance.find_by_id(x) || ::ClinicalSignificance.find_by_key(x))&.id.to_s }
-            @not_in = Array(arg[:terms]).delete(::ClinicalSignificance::Significances::NOT_IN_CLINVAR.id.to_s)
+            @terms = Array(arg[:terms]).filter_map { |x| (QueryParameters::ClinicalSignificance.find_by_id(x) || QueryParameters::ClinicalSignificance.find_by_key(x))&.id.to_s }
+            @not_in = @terms.find { |x| x.key == 'NA' }
             @source = Array(arg[:source])
 
-            raise InvalidQuery, 'terms = ["NC"] and source are exclusive when relation = "eq"' if @relation == 'eq' && @not_in && @source.present?
+            raise InvalidQuery, 'terms = ["NA"] and source are exclusive when relation = "eq"' if @relation == 'eq' && @not_in && @source.present?
           end
 
           def to_hash

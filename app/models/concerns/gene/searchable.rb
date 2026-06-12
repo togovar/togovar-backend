@@ -7,90 +7,54 @@ class Gene
       include Elasticsearch::Model
 
       index_name :gene
-
-      settings = {
-        index: {
-          number_of_shards: ENV.fetch('TOGOVAR_INDEX_GENE_NUMBER_OF_SHARDS') { 1 },
-          number_of_replicas: ENV.fetch('TOGOVAR_INDEX_GENE_NUMBER_OF_REPLICAS') { 0 }
-        },
-        analysis: {
-          analyzer: {
-            symbol_search_analyzer: {
-              type: :custom,
-              tokenizer: :whitespace,
-              filter: :lowercase
-            },
-            symbol_suggest_analyzer: {
-              type: :custom,
-              tokenizer: :whitespace,
-              filter: %i[lowercase edge_ngram_filter]
-            },
-            symbol_ngram_analyzer: {
-              filter: %i[lowercase],
-              tokenizer: :symbol_ngram_tokenizer
-            }
-          },
-          tokenizer: {
-            symbol_ngram_tokenizer: {
-              type: :edge_ngram,
-              min_gram: 3,
-              max_gram: 10
-            }
-          },
-          filter: {
-            edge_ngram_filter: {
-              type: :edge_ngram,
-              min_gram: 3,
-              max_gram: 20
-            }
-          },
-          normalizer: {
-            lowercase: {
-              type: :custom,
-              filter: :lowercase
-            }
-          }
-        }
-      }
-
-      settings settings do
-        mapping dynamic: :strict do
-          indexes :hgnc_id, type: :integer
-          indexes :symbol,
-                  type: :keyword,
-                  fields: {
-                    search: {
-                      type: :text,
-                      analyzer: :symbol_search_analyzer
-                    },
-                    suggest: {
-                      type: :text,
-                      analyzer: :symbol_suggest_analyzer
-                    },
-                    lowercase: {
-                      type: :keyword,
-                      normalizer: :lowercase
-                    },
-                    ngram_search: {
-                      type: :text,
-                      analyzer: :symbol_ngram_analyzer
-                    },
-                  }
-          indexes :approved, type: :boolean
-          indexes :alias_of, type: :keyword
-          indexes :name, type: :keyword
-          indexes :location, type: :keyword
-          indexes :family, type: :nested do
-            indexes :id, type: :integer
-            indexes :name, type: :keyword
-          end
-        end
-      end
     end
 
+    # mappings:
+    #   dynamic: strict
+    #   properties:
+    #     alias_of:
+    #       type: keyword
+    #     approved:
+    #       type: boolean
+    #     family:
+    #       type: nested
+    #       properties:
+    #         id:
+    #           type: integer
+    #         name:
+    #           type: keyword
+    #     hgnc_id:
+    #       type: integer
+    #     location:
+    #       type: keyword
+    #     name:
+    #       type: keyword
+    #     symbol:
+    #       type: keyword
+    #       fields:
+    #         lowercase:
+    #           type: keyword
+    #           normalizer: lowercase
+    #         ngram_search:
+    #           type: text
+    #           analyzer: symbol_ngram_analyzer
+    #         search:
+    #           type: text
+    #           analyzer: symbol_search_analyzer
+    #         suggest:
+    #           type: text
+    #           analyzer: symbol_suggest_analyzer
+
     module ClassMethods
-      def find(_id)
-        raise NotImplementedError
+      # @param [Integer] id HGNC ID
+      def find(id)
+        query = Elasticsearch::DSL::Search.search do
+          query do
+            term(hgnc_id: id)
+          end
+        end
+
+        super(query)
       end
 
       # @param [String] keyword
@@ -117,18 +81,51 @@ class Gene
 
       # @return [Hash]
       def synonyms(hgnc_id)
-        return unless hgnc_id
+        unless Rails.cache.read('Gene.synonym')
+          gen_synonyms_cache
+          Rails.cache.write('Gene.synonym', true)
+        end
 
-        query = Elasticsearch::DSL::Search.search do
-          query do
-            match hgnc_id: hgnc_id
+        Rails.cache.read("Gene.synonym[#{hgnc_id}]")
+      end
+
+      def gen_synonyms_cache
+        query = {
+          sort: [:hgnc_id, :symbol],
+          size: 10000,
+        }
+
+        current_id = nil
+        synonyms = []
+
+        t = Benchmark.realtime do
+          while (rs = search(query).results).present?
+            search_after = nil
+
+            rs.each do |r|
+              id, symbol = r[:_source]&.values_at(:hgnc_id, :symbol)
+
+              if current_id && current_id != id && synonyms.present?
+                Rails.cache.write("Gene.synonym[#{current_id}]", synonyms)
+                synonyms = []
+              end
+
+              current_id = id
+
+              next if r.dig(:_source, :approved)
+
+              synonyms << r.dig(:_source, :symbol)
+
+              search_after = [id, symbol].compact
+            end
+
+            break if search_after.blank?
+
+            query.update(search_after:)
           end
         end
 
-        __elasticsearch__.search(query).results
-                         .reject { |x| x.dig('_source', 'approved') }
-                         .map { |x| x.dig('_source', 'symbol') }
-                         .compact
+        Rails.logger.debug('Generate synonyms_cache') { "#{t} s" }
       end
 
       # @param [String] keyword

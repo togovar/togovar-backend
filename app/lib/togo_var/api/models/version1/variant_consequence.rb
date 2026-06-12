@@ -4,7 +4,7 @@ module TogoVar
   module API
     module Models
       module Version1
-        class VariationConsequence < StrictTerms
+        class VariantConsequence < StrictTerms
           self.key_name = :consequence
 
           ACCEPTABLE_TERMS = %w[
@@ -39,12 +39,7 @@ module TogoVar
 
             q = Elasticsearch::DSL::Search.search do
               query do
-                nested do
-                  path :vep
-                  query do
-                    terms 'vep.consequence': terms
-                  end
-                end
+                terms 'vep.consequence': terms
               end
             end
 

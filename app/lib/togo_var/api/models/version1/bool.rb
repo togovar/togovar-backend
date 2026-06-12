@@ -65,7 +65,7 @@ module TogoVar
           protected
 
           def acceptable_components
-            VariationSearch::ACCEPTABLE_COMPONENTS
+            VariantSearch::ACCEPTABLE_COMPONENTS
           end
         end
       end

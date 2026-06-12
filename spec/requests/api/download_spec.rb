@@ -8,7 +8,7 @@ RSpec.describe 'API::Downloads', type: :request do
     GRCH37 = %w[tgv_id rs chromosome position_grch37 reference alternate type gene consequence condition
                 sift_qualitative_prediction sift_score polyphen2_qualitative_prediction polyphen2_score
                 alphamissense_pathogenicity alphamissense_score
-                jga_ngs_allele_alt jga_ngs_allele_total jga_ngs_alt_allele_freq jga_ngs_qc_status
+                jga_wes_allele_alt jga_wes_allele_total jga_wes_alt_allele_freq jga_wes_qc_status
                 jga_snp_allele_alt jga_snp_allele_total jga_snp_alt_allele_freq jga_snp_genotype_alt_alt
                 jga_snp_genotype_ref_alt jga_snp_genotype_ref_ref jga_snp_qc_status
                 tommo_allele_alt tommo_allele_total tommo_alt_allele_freq tommo_qc_status
@@ -19,7 +19,7 @@ RSpec.describe 'API::Downloads', type: :request do
     GRCH38 = %w[tgv_id rs chromosome position_grch38 reference alternate type gene consequence condition
                 sift_qualitative_prediction sift_score polyphen2_qualitative_prediction polyphen2_score
                 alphamissense_pathogenicity alphamissense_score
-                jga_ngs_allele_alt jga_ngs_allele_total jga_ngs_alt_allele_freq jga_ngs_qc_status
+                jga_wes_allele_alt jga_wes_allele_total jga_wes_alt_allele_freq jga_wes_qc_status
                 jga_snp_allele_alt jga_snp_allele_total jga_snp_alt_allele_freq jga_snp_genotype_alt_alt
                 jga_snp_genotype_ref_alt jga_snp_genotype_ref_ref jga_snp_qc_status
                 tommo_allele_alt tommo_allele_total tommo_alt_allele_freq tommo_qc_status
