@@ -158,19 +158,19 @@ class VariantSearchService
         end
 
         if (external_link = cross_references(variant, dbsnp)).present?
-          json.external_link external_link
+          json.external_links external_link
         end
 
         if variant.key?(:pubmed)
           json.pubmed variant[:pubmed]
         end
 
-        if (symbols = gene_symbols(variant)).present?
-          json.symbols symbols
+        if (genes = gene_symbols(variant)).present?
+          json.genes genes
         end
 
         if variant.key?(:conditions)
-          json.significance conditions(variant)
+          json.conditions conditions(variant)
         end
 
         json.most_severe_consequence SequenceOntology.find_by_key(variant[:most_severe_consequence])&.id
