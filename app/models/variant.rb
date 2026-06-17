@@ -96,7 +96,7 @@ class Variant
 
   module QueryHelper
     def total(user = {})
-      query = Elasticsearch::DSL::Search.search do
+      body = Elasticsearch::DSL::Search.search do
         query do
           bool do
             should do
@@ -131,7 +131,7 @@ class Variant
         end
       end
 
-      Variant.count(body: query)
+      Variant.count(body:)
     end
 
     def statistics(user = {})

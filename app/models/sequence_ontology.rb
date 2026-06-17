@@ -122,8 +122,12 @@ class SequenceOntology < TermDictionary
       @all ||= constants.filter_map { |x| const_get(x) if x.to_s.starts_with?('SO_') }
     end
 
+    def all_map
+      @all_map ||= all.map { |x| [x.key.to_s, x] }.to_h
+    end
+
     def find_by_key(key)
-      all.find { |x| x.key == key || x.key.to_s == key.to_s }
+      all_map[key.to_s]
     end
 
     def find_by_label(label)

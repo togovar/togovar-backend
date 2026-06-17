@@ -82,7 +82,6 @@ class VariantSearchService
       return self if (datasets & Variant.all_datasets(user)).empty?
 
       interpretations = significance.filter_map { |x| QueryParameters::ClinicalSignificance.find_by_key(x)&.id }
-      Rails.logger.info "Interpretations: #{interpretations}"
 
       query = Elasticsearch::DSL::Search.search do
         query do
@@ -236,6 +235,16 @@ class VariantSearchService
       @significance_condition = Elasticsearch::DSL::Search.search do
         query do
           bool do
+            if interpretations.present?
+              should do
+                nested do
+                  path 'conditions.condition'
+                  query do
+                    terms 'conditions.condition.classification': interpretations
+                  end
+                end
+              end
+            end
             if interpretations.delete('not_available')
               should do
                 bool do
@@ -246,16 +255,6 @@ class VariantSearchService
                         exists field: 'conditions'
                       end
                     end
-                  end
-                end
-              end
-            end
-            if interpretations.present?
-              should do
-                nested do
-                  path 'conditions.condition'
-                  query do
-                    terms 'conditions.condition.classification': interpretations
                   end
                 end
               end
