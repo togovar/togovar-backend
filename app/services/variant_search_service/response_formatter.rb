@@ -2,6 +2,8 @@ class VariantSearchService
   class ResponseFormatter
     XREF_TEMPLATE = Rails.application.config.application[:xref]
 
+    MAX_GENES_SIZE = 5
+
     def initialize(param, result, error = [], warning = [], notice = [], **options)
       @param = param
       @result = result.deep_symbolize_keys
@@ -139,8 +141,9 @@ class VariantSearchService
     end
 
     def data(json)
-      json.data @result[:results] do |result|
-        variant = result[:_source].deep_symbolize_keys
+      # use raw_response for performance
+      json.data @result[:results].response.raw_response['hits']['hits'] do |result|
+        variant = result['_source'].deep_symbolize_keys
 
         if (tgv = variant[:id]).present?
           json.id "tgv#{tgv}"
@@ -165,9 +168,7 @@ class VariantSearchService
           json.pubmed variant[:pubmed]
         end
 
-        if (genes = gene_symbols(variant)).present?
-          json.genes genes
-        end
+        json.genes gene_symbols(variant)
 
         if variant.key?(:conditions)
           json.conditions conditions(variant)
@@ -183,7 +184,7 @@ class VariantSearchService
           json.sscv_db sscv_db(variant)
         end
 
-        if variant.key?(:vep)
+        if variant.key?(:vep) && variant[:gene].size <= MAX_GENES_SIZE
           json.transcripts vep(variant)
         end
 
@@ -280,10 +281,34 @@ class VariantSearchService
     end
 
     def gene_symbols(variant)
-      gene_comparator = Gene.id_comparator(@options[:gene_order])
+      items = if variant[:gene].size <= MAX_GENES_SIZE
+                gene_comparator = Gene.id_comparator(@options[:gene_order])
 
-      Array(variant[:gene]).map { |x| { name: x[:label], id: x[:id], synonyms: Gene.synonyms(x[:id]) }.compact }
-                           .sort(&gene_comparator)
+                Array(variant[:gene]).map { |x| { name: x[:label], id: x[:id], synonyms: Gene.synonyms(x[:id]) }.compact }
+                                     .sort(&gene_comparator)
+              else
+                if @options[:gene_order].present?
+                  query_gene_symbol
+                else
+                  []
+                end
+              end
+
+      {
+        total: variant[:gene].size,
+        items:
+      }
+    end
+
+    def query_gene_symbol
+      @query_gene_symbol ||= begin
+                               @options[:gene_order].map do |id|
+                                 gene = Gene.find(id)
+                                 synonyms = Gene.synonyms(id)
+
+                                 { name: gene[:symbol], id: gene[:hgnc_id], synonyms: }.compact
+                               end
+                             end
     end
 
     def sscv_db(variant)

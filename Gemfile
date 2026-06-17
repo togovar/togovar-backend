@@ -30,6 +30,7 @@ gem 'rails_pretty_json_rednerer', '~> 0.1.0'
 gem 'elasticsearch-dsl', '~> 0.1.9'
 gem 'elasticsearch-model', '~> 7.1'
 gem 'elasticsearch-rails', '~> 7.1'
+gem 'oj', '~> 3.17'
 
 # A collection of Rack middleware to support JSON Schema
 gem 'committee', '~> 4.2', '>= 4.2.1'
