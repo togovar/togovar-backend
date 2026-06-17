@@ -296,7 +296,7 @@ class VariantSearchService
 
       {
         total: variant[:gene].size,
-        items:
+        items: items.presence
       }
     end
 
