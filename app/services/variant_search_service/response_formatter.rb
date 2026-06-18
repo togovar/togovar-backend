@@ -184,7 +184,7 @@ class VariantSearchService
           json.sscv_db sscv_db(variant)
         end
 
-        if variant.key?(:vep) && variant[:gene].size <= MAX_GENES_SIZE
+        if variant.key?(:vep) && variant[:gene].present? && variant[:gene].size <= MAX_GENES_SIZE
           json.transcripts vep(variant)
         end
 
@@ -281,23 +281,27 @@ class VariantSearchService
     end
 
     def gene_symbols(variant)
-      items = if variant[:gene].size <= MAX_GENES_SIZE
-                gene_comparator = Gene.id_comparator(@options[:gene_order])
+      items = if variant[:gene].present?
+                if variant[:gene].size <= MAX_GENES_SIZE
+                  gene_comparator = Gene.id_comparator(@options[:gene_order])
 
-                Array(variant[:gene]).map { |x| { name: x[:label], id: x[:id], synonyms: Gene.synonyms(x[:id]) }.compact }
-                                     .sort(&gene_comparator)
-              else
-                if @options[:gene_order].present?
-                  query_gene_symbol
+                  Array(variant[:gene]).map { |x| { name: x[:label], id: x[:id], synonyms: Gene.synonyms(x[:id]) }.compact }
+                                       .sort(&gene_comparator)
                 else
-                  []
+                  if @options[:gene_order].present?
+                    query_gene_symbol
+                  else
+                    []
+                  end
                 end
+              else
+                []
               end
 
       {
-        total: variant[:gene].size,
+        total: variant[:gene]&.size || 0,
         items: items.presence
-      }
+      }.compact
     end
 
     def query_gene_symbol
