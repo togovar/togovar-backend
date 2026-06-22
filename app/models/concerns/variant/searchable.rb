@@ -240,6 +240,7 @@ class Variant
 
       MINIMAL_FIELDS = %w[
         id
+        sv
         type
         chromosome_index
         chromosome
@@ -260,6 +261,11 @@ class Variant
       def search_for_jogo(query)
         results = []
 
+        unless gene_id_terms_exists?(query)
+          raise Errors::APIValidationError.new('Invalid query',
+                                               errors: ['must contain gene query with jogo formatter'])
+        end
+
         q = query
         q[:size] = 10_000
         q[:fields] = MINIMAL_FIELDS
@@ -272,12 +278,12 @@ class Variant
 
             r[:_source] = {
               id: fields['id']&.first,
+              sv: fields['sv']&.first,
               type: fields['type']&.first,
-              chromosome: {
-                index: fields['chromosome_index']&.first,
-                label: fields['chromosome']&.first
-              },
-              position: fields['position_start']&.first, # TODO: lift up nested field
+              chromosome_index: fields['chromosome_index']&.first,
+              chromosome: fields['chromosome']&.first,
+              position_start: fields['position_start']&.first,
+              position_end: fields['position_end']&.first,
               reference: fields['reference']&.first,
               alternate: fields['alternate']&.first,
               xref: Array(fields['xref']).map do |xref|
@@ -311,6 +317,21 @@ class Variant
         end
 
         results
+      end
+
+      private
+
+      def gene_id_terms_exists?(obj)
+        case obj
+        when Hash
+          return true if obj[:terms].is_a?(Hash) && obj[:terms].key?(:"gene.id")
+
+          obj.any? { |_, v| gene_id_terms_exists?(v) }
+        when Array
+          obj.any? { |v| gene_id_terms_exists?(v) }
+        else
+          false
+        end
       end
     end
   end

@@ -5,8 +5,8 @@ servers:
 
 info:
   title: TogoVar API
-  version: "0.9.1"
-  description: TogoVar API version 0.9.1 specification
+  version: "0.9.2"
+  description: TogoVar API version 0.9.2 specification
 
 paths:
   /search/variant:
@@ -396,9 +396,11 @@ components:
                   - $ref: '#/components/schemas/VariantConsequence'
                   - $ref: '#/components/schemas/VariantFrequency'
                   - $ref: '#/components/schemas/ClinicalSignificance'
-                  - $ref: '#/components/schemas/Sift'
-                  - $ref: '#/components/schemas/Polyphen'
+                  - $ref: '#/components/schemas/SSCVDB'
+                  - $ref: '#/components/schemas/SIFT'
+                  - $ref: '#/components/schemas/PolyPhen'
                   - $ref: '#/components/schemas/AlphaMissense'
+                  - $ref: '#/components/schemas/CADDPhred'
                   - $ref: '#/components/schemas/Gene'
                   - $ref: '#/components/schemas/Disease'
                   - $ref: '#/components/schemas/And'
@@ -438,7 +440,6 @@ components:
                     - sift
                     - polyphen
                     - alphamissense
-
           examples:
             Example1:
               $ref: '#/components/examples/SearchVariant-1'
@@ -590,6 +591,7 @@ components:
                 - "22"
                 - X
                 - Y
+                - M
                 - MT
             position:
               oneOf:
@@ -618,7 +620,6 @@ components:
               enum:
                 - eq
                 - ne
-
             terms:
               type: array
               items:
@@ -631,12 +632,8 @@ components:
                 enum:
                   <% Rails.application.config.application.dig(:query_params, :type).each do |x| %>
                   <%= "- #{x[:key]}" %>
+                  <%= "- #{x[:id]}" %>
                   <% end %>
-                  - snv
-                  - ins
-                  - del
-                  - indel
-                  - sub
 
     VariantConsequence:
       type: object
@@ -660,7 +657,6 @@ components:
               enum:
                 - eq
                 - ne
-
             terms:
               type: array
               items:
@@ -672,47 +668,11 @@ components:
                   <% end %>
 
                   see [this documentation](https://ensembl.org/info/genome/variation/prediction/predicted_data.html) for details
-
                 enum:
                   <% Rails.application.config.application.dig(:query_params, :consequence).each do |x| %>
                   <%= "- #{x[:key]}" %>
+                  <%= "- #{x[:id]}" %>
                   <% end %>
-                  - transcript_ablation
-                  - splice_acceptor_variant
-                  - splice_donor_variant
-                  - stop_gained
-                  - frameshift_variant
-                  - stop_lost
-                  - start_lost
-                  - transcript_amplification
-                  - inframe_insertion
-                  - inframe_deletion
-                  - missense_variant
-                  - protein_altering_variant
-                  - splice_region_variant
-                  - incomplete_terminal_codon_variant
-                  - start_retained_variant
-                  - stop_retained_variant
-                  - synonymous_variant
-                  - coding_sequence_variant
-                  - mature_miRNA_variant
-                  - 5_prime_UTR_variant
-                  - 3_prime_UTR_variant
-                  - non_coding_transcript_exon_variant
-                  - intron_variant
-                  - NMD_transcript_variant
-                  - non_coding_transcript_variant
-                  - upstream_gene_variant
-                  - downstream_gene_variant
-                  - TFBS_ablation
-                  - TFBS_amplification
-                  - TF_binding_site_variant
-                  - regulatory_region_ablation
-                  - regulatory_region_amplification
-                  - feature_elongation
-                  - regulatory_region_variant
-                  - feature_truncation
-                  - intergenic_variant
 
     VariantFrequency:
       type: object
@@ -739,7 +699,6 @@ components:
                 filtered:
                   type: boolean
                   description: if `true`, exclude variants with a FILTER flag other than PASS
-
             - type: object
               description: search datasets by allele count
               additionalProperties: false
@@ -753,7 +712,6 @@ components:
                 filtered:
                   type: boolean
                   description: if `true`, exclude variants with a FILTER flag other than PASS
-
             - type: object
               description: search datasets by genotype count
               additionalProperties: false
@@ -820,7 +778,6 @@ components:
               enum:
                 - eq
                 - ne
-
             terms:
               type: array
               items:
@@ -833,11 +790,8 @@ components:
                 enum:
                   <% Rails.application.config.application.dig(:query_params, :significance).each do |x| %>
                   <%= "- #{x[:key]}" %>
-                  <% end %>
-                  <% Rails.application.config.application.dig(:query_params, :significance).each do |x| %>
                   <%= "- #{x[:id]}" %>
                   <% end %>
-
             source:
               type: array
               items:
@@ -852,7 +806,44 @@ components:
                   <%= "- #{x[:id]}" %>
                   <% end %>
 
-    Sift:
+    SSCVDB:
+      type: object
+      additionalProperties: false
+      required:
+        - sscv_db
+      properties:
+        sscv_db:
+          type: object
+          additionalProperties: false
+          required:
+            - relation
+            - terms
+          properties:
+            relation:
+              type: string
+              description: >
+                Available values
+                 * `eq` - Equals to any of term in the list
+                 * `ne` - Not equals to all of term in the list
+              enum:
+                - eq
+                - ne
+            terms:
+              type: array
+              items:
+                type: string
+                description: >
+                  Both short keys and its label are acceptable
+                  <% Rails.application.config.application.dig(:query_params, :sscv_db).each do |x| %>
+                  <%= "* `#{x[:key]}` - #{x[:label]}" %>
+                  <% end %>
+                enum:
+                  <% Rails.application.config.application.dig(:query_params, :sscv_db).each do |x| %>
+                  <%= "- #{x[:key]}" %>
+                  <%= "- #{x[:id]}" %>
+                  <% end %>
+
+    SIFT:
       type: object
       additionalProperties: false
       required:
@@ -877,7 +868,7 @@ components:
                     enum:
                       - unassigned
 
-    Polyphen:
+    PolyPhen:
       type: object
       additionalProperties: false
       required:
@@ -929,6 +920,31 @@ components:
                     enum:
                       - unassigned
 
+    CADDPhred:
+      type: object
+      additionalProperties: false
+      required:
+        - cadd_phred
+      properties:
+        cadd_phred:
+          type: object
+          additionalProperties: false
+          required:
+            - score
+          properties:
+            score:
+              oneOf:
+                - $ref: '#/components/schemas/Range'
+                - title: Terms
+                  type: array
+                  items:
+                    type: string
+                    description: >
+                      Available values
+                       * `unassigned`
+                    enum:
+                      - unassigned
+
     Gene:
       type: object
       additionalProperties: false
@@ -951,7 +967,6 @@ components:
               enum:
                 - eq
                 - ne
-
             terms:
               type: array
               items:
@@ -1129,9 +1144,11 @@ components:
               - $ref: '#/components/schemas/VariantConsequence'
               - $ref: '#/components/schemas/VariantFrequency'
               - $ref: '#/components/schemas/ClinicalSignificance'
-              - $ref: '#/components/schemas/Sift'
-              - $ref: '#/components/schemas/Polyphen'
+              - $ref: '#/components/schemas/SSCVDB'
+              - $ref: '#/components/schemas/SIFT'
+              - $ref: '#/components/schemas/PolyPhen'
               - $ref: '#/components/schemas/AlphaMissense'
+              - $ref: '#/components/schemas/CADDPhred'
               - $ref: '#/components/schemas/Gene'
               - $ref: '#/components/schemas/Disease'
               - $ref: '#/components/schemas/And'
@@ -1155,9 +1172,11 @@ components:
               - $ref: '#/components/schemas/VariantConsequence'
               - $ref: '#/components/schemas/VariantFrequency'
               - $ref: '#/components/schemas/ClinicalSignificance'
-              - $ref: '#/components/schemas/Sift'
-              - $ref: '#/components/schemas/Polyphen'
+              - $ref: '#/components/schemas/SSCVDB'
+              - $ref: '#/components/schemas/SIFT'
+              - $ref: '#/components/schemas/PolyPhen'
               - $ref: '#/components/schemas/AlphaMissense'
+              - $ref: '#/components/schemas/CADDPhred'
               - $ref: '#/components/schemas/Gene'
               - $ref: '#/components/schemas/Disease'
               - $ref: '#/components/schemas/And'

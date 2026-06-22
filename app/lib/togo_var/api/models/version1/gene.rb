@@ -12,24 +12,7 @@ module TogoVar
 
             q = Elasticsearch::DSL::Search.search do
               query do
-                bool do
-                  must do
-                    nested do
-                      path 'vep'
-                      query do
-                        terms 'vep.hgnc_id': terms
-                      end
-                    end
-                  end
-                  must do
-                    nested do
-                      path :'vep.symbol'
-                      query do
-                        terms 'vep.symbol.source': %w[HGNC EntrezGene]
-                      end
-                    end
-                  end
-                end
+                terms 'gene.id': terms
               end
             end
 

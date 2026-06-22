@@ -18,21 +18,23 @@ module TogoVar
 
             arg = @args.first
 
-            @terms = Array(arg[:terms]).filter_map { |x| (QueryParameters::ClinicalSignificance.find_by_id(x) || QueryParameters::ClinicalSignificance.find_by_key(x))&.id.to_s }
-            @not_in = @terms.find { |x| x.key == 'NA' }
+            @terms = Array(arg[:terms])
+            @include_na = QueryParameters::NOT_AVAILABLE_KEYS.any? { |x| @terms.include?(x) }
             @source = Array(arg[:source])
 
-            raise InvalidQuery, 'terms = ["NA"] and source are exclusive when relation = "eq"' if @relation == 'eq' && @not_in && @source.present?
+            raise InvalidQuery, 'terms = ["NA"] and source are exclusive when relation = "eq"' if @relation == 'eq' && @include_na && @source.present?
           end
 
           def to_hash
             validate
 
             relation = @relation
-            terms = @terms
+            include_na = @include_na
+            terms = @terms.reject { |x| QueryParameters::NOT_AVAILABLE_KEYS.include?(x) }
+                          .filter_map { |x| QueryParameters::ClinicalSignificance.find(x)&.id }
             sources = @source
 
-            if @not_in
+            if include_na
               Elasticsearch::DSL::Search.search do
                 query do
                   bool do

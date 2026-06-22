@@ -7,24 +7,16 @@ module TogoVar
         class VariantType < StrictTerms
           self.key_name = :type
 
-          ACCEPTABLE_TERMS = %w[
-            SO_0001483 SO_0000667 SO_0000159 SO_1000032 SO_1000002
-            snv ins del indel sub
-          ].freeze
-
-          # TODO: replace by config
-          # ACCEPTABLE_TERMS = Rails.application
-          #                         .config
-          #                         .application
-          #                         .dig(:query_params, :type)
-          #                         .flat_map { |x| [x[:id], x[:key]] }
+          ACCEPTABLE_TERMS = Rails.application
+                                  .config
+                                  .application
+                                  .dig(:query_params, :type)
+                                  .flat_map { |x| [x[:id], x[:key]] }
 
           def to_hash
             validate
 
-            terms = @terms
-                      .map { |x| (SequenceOntology.find(x) || SequenceOntology.find_by_key(x))&.label }
-                      .compact
+            terms = @terms.filter_map { |x| (SequenceOntology.find(x) || SequenceOntology.find_by_key(x))&.label }
 
             q = Elasticsearch::DSL::Search.search do
               query do

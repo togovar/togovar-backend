@@ -5,19 +5,23 @@ module TogoVar
     module Models
       module Version1
         class VariantSearch < Base
-          ACCEPTABLE_COMPONENTS = { id: Id,
-                                    location: Location,
-                                    type: VariantType,
-                                    consequence: VariantConsequence,
-                                    sift: Sift,
-                                    polyphen: Polyphen,
-                                    alphamissense: AlphaMissense,
-                                    frequency: VariantFrequency,
-                                    significance: ClinicalSignificance,
-                                    gene: Gene,
-                                    disease: Disease,
-                                    and: And,
-                                    or: Or }.freeze
+          ACCEPTABLE_COMPONENTS = {
+            id: Id,
+            location: Location,
+            type: VariantType,
+            consequence: VariantConsequence,
+            frequency: VariantFrequency,
+            significance: ClinicalSignificance,
+            sscv_db: SscvDb,
+            sift: Sift,
+            polyphen: Polyphen,
+            alphamissense: AlphaMissense,
+            cadd_phred: CaddPhred,
+            gene: Gene,
+            disease: Disease,
+            and: And,
+            or: Or
+          }.freeze
 
           module Defaults
             LIMIT = 100
@@ -92,6 +96,8 @@ module TogoVar
               end
             end
 
+            with_condition = !significance_na_terms_exists?(@query)
+
             query = Elasticsearch::DSL::Search.search do
               query do
                 bool do
@@ -106,11 +112,13 @@ module TogoVar
                           end
                         end
                       end
-                      should do
-                        nested do
-                          path :conditions
-                          query do
-                            terms 'conditions.source': Variant.condition_datasets(user)
+                      if with_condition
+                        should do
+                          nested do
+                            path :conditions
+                            query do
+                              terms 'conditions.source': Variant.condition_datasets(user)
+                            end
                           end
                         end
                       end
@@ -188,6 +196,29 @@ module TogoVar
             # @return [Array] the first key-value pair of hash passed to args
             def extract_component
               @args.first&.first || []
+            end
+          end
+
+          private
+
+          def significance_na_terms_exists?(obj)
+            case obj
+            when Hash
+              if (sig = obj["significance"]).is_a?(Hash)
+                relation = sig["relation"]
+                terms = Array(sig["terms"])
+
+                if (relation == "eq" && terms.any? { |x| QueryParameters::NOT_AVAILABLE_KEYS.include?(x) }) ||
+                   (relation == "ne" && terms.none? { |x| QueryParameters::NOT_AVAILABLE_KEYS.include?(x) })
+                  return true
+                end
+              end
+
+              obj.any? { |_, v| significance_na_terms_exists?(v) }
+            when Array
+              obj.any? { |v| significance_na_terms_exists?(v) }
+            else
+              false
             end
           end
         end

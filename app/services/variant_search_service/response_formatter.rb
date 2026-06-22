@@ -142,7 +142,13 @@ class VariantSearchService
 
     def data(json)
       # use raw_response for performance
-      json.data @result[:results].response.raw_response['hits']['hits'] do |result|
+      results = if @param[:formatter] == 'jogo'
+                  @result[:results]
+                else
+                  @result[:results].response.raw_response['hits']['hits']
+                end
+
+      json.data results do |result|
         variant = result['_source'].deep_symbolize_keys
 
         if (tgv = variant[:id]).present?

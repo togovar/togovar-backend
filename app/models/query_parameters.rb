@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 module QueryParameters
+  NOT_AVAILABLE_KEYS = %w[NA not_available]
+
   class Base
     class << self
       def all
@@ -21,6 +23,10 @@ module QueryParameters
 
       def find_by_key(name)
         self::ALL.find { |x| x.key == name.to_s }
+      end
+
+      def find(id_or_key)
+        find_by_id(id_or_key) || find_by_key(id_or_key)
       end
 
       def index_of(v)
