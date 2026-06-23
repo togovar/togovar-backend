@@ -2,8 +2,6 @@ class VariantSearchService
   class ResponseFormatter
     XREF_TEMPLATE = Rails.application.config.application[:xref]
 
-    MAX_GENES_SIZE = 5
-
     def initialize(param, result, error = [], warning = [], notice = [], **options)
       @param = param
       @result = result.deep_symbolize_keys
@@ -92,14 +90,15 @@ class VariantSearchService
       types = Array(@result[:aggs].dig(:type, :buckets))
 
       # Ensure type key
-      SequenceOntology::VariantClass.constants.each do |sym|
-        next unless (label = SequenceOntology::VariantClass.const_get(sym)&.label)
-        types << { key: label.to_s, doc_count: 0 } unless types.find { |type| type[:key] == label.to_s }
+      QueryParameters::Type.all.each do |t|
+        next if types.find { |x| x[:key] == t.id }
+
+        types << { key: t.key, doc_count: 0 }
       end
 
       json.type do
         types.each do |x|
-          json.set! SequenceOntology.find_by_label(x[:key])&.id, x[:doc_count]
+          json.set! QueryParameters::Type.find_by_id(x[:key])&.key, x[:doc_count]
         end
       end
     end
@@ -127,14 +126,16 @@ class VariantSearchService
       consequences = Array(@result[:aggs].dig(:consequence, :buckets))
 
       # Ensure consequence key
-      SequenceOntology::CONSEQUENCES_IN_ORDER.map(&:key).each do |key|
-        consequences << { key: key.to_s, doc_count: 0 } unless consequences.find { |x| x[:key] == key.to_s }
+      QueryParameters::Consequence.all.each do |t|
+        next if consequences.find { |x| x[:key] == t.id }
+
+        consequences << { key: t.key, doc_count: 0 }
       end
 
       json.consequence do
         consequences.each do |x|
-          if (c = SequenceOntology.find_by_key(x[:key]))
-            json.set! c.id, x[:doc_count]
+          if (c = QueryParameters::Consequence.find_by_id(x[:key]))
+            json.set! c.key, x[:doc_count]
           end
         end
       end
@@ -156,7 +157,7 @@ class VariantSearchService
         end
 
         json.sv variant[:sv]
-        json.type SequenceOntology.find_by_label(variant[:type])&.id
+        json.type QueryParameters::Type.find_by_id(variant[:type])&.key
         json.chromosome variant[:chromosome]
         json.position variant[:position_start]
         json.reference variant[:reference]
@@ -174,13 +175,15 @@ class VariantSearchService
           json.pubmed variant[:pubmed]
         end
 
-        json.genes gene_symbols(variant)
+        if (genes = gene_symbols(variant))
+          json.genes genes
+        end
 
         if variant.key?(:conditions)
           json.significance conditions(variant)
         end
 
-        json.most_severe_consequence SequenceOntology.find_by_key(variant[:most_severe_consequence])&.id
+        json.most_severe_consequence QueryParameters::Consequence.find_by_id(variant[:most_severe_consequence])&.key
         json.sift variant[:sift] if variant[:sift]
         json.polyphen(variant[:polyphen].negative? ? 'Unknown' : variant[:polyphen]) if variant[:polyphen]
         json.alphamissense variant[:alphamissense] if variant[:alphamissense]
@@ -190,7 +193,7 @@ class VariantSearchService
           json.sscv_db sscv_db(variant)
         end
 
-        if variant.key?(:vep) && variant[:gene].present? && variant[:gene].size <= MAX_GENES_SIZE
+        if variant.key?(:vep)
           json.transcripts vep(variant)
         end
 
@@ -287,38 +290,12 @@ class VariantSearchService
     end
 
     def gene_symbols(variant)
-      items = if variant[:gene].present?
-                if variant[:gene].size <= MAX_GENES_SIZE
-                  gene_comparator = Gene.id_comparator(@options[:gene_order])
+      gene_comparator = Gene.id_comparator(@options[:gene_order])
+      items = Array(variant[:gene]).map { |x| { name: x[:label], id: x[:id], synonyms: Gene.synonyms(x[:id]) } }
+                                   .map(&:compact)
+                                   .sort(&gene_comparator)
 
-                  Array(variant[:gene]).map { |x| { name: x[:label], id: x[:id], synonyms: Gene.synonyms(x[:id]) }.compact }
-                                       .sort(&gene_comparator)
-                else
-                  if @options[:gene_order].present?
-                    query_gene_symbol
-                  else
-                    []
-                  end
-                end
-              else
-                []
-              end
-
-      {
-        total: variant[:gene]&.size || 0,
-        items: items.presence
-      }.compact
-    end
-
-    def query_gene_symbol
-      @query_gene_symbol ||= begin
-                               @options[:gene_order].map do |id|
-                                 gene = Gene.find(id)
-                                 synonyms = Gene.synonyms(id)
-
-                                 { name: gene[:symbol], id: gene[:hgnc_id], synonyms: }.compact
-                               end
-                             end
+      items if items.present?
     end
 
     def sscv_db(variant)
@@ -355,12 +332,13 @@ class VariantSearchService
     end
 
     def vep(variant)
-      vep = Array(variant[:vep]).reject { |x| x[:consequence_type] == 'regulatory_feature_consequence' }
-                                .map(&:compact)
+      vep = Array(variant[:vep]).map(&:compact)
+      # TODO: gnomAD SV
+      # .reject { |x| x[:consequence_type] == 'regulatory_feature_consequence' }
 
       vep.each do |x|
-        consequences = x[:consequence].map { |key| SequenceOntology.find_by_key(key) }
-        x[:consequence] = (SequenceOntology::CONSEQUENCES_IN_ORDER & consequences).map { |y| y.id }
+        consequences = x[:consequence].map { |id| QueryParameters::Consequence.find_by_id(id) }
+        x[:consequence] = (QueryParameters::Consequence::ALL & consequences).map(&:key)
       end
 
       vep

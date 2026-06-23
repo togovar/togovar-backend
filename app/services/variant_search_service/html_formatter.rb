@@ -134,7 +134,7 @@ class VariantSearchService
     def consequence(result)
       return if (consequence = result[:most_severe_consequence]).blank?
 
-      %Q[<div class="consequence-item">#{SequenceOntology.find_by_key(consequence)&.label}</div>]
+      %Q[<div class="consequence-item">#{QueryParameters::Consequence.find(consequence)&.label}</div>]
     end
 
     def sift(result)

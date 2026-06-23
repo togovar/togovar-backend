@@ -21,6 +21,10 @@ module QueryParameters
         self::ALL.find { |x| x.id == id.to_s }
       end
 
+      def find_by_label(label)
+        self::ALL.find { |x| x.label == label.to_s }
+      end
+
       def find_by_key(name)
         self::ALL.find { |x| x.key == name.to_s }
       end

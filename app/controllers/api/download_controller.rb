@@ -232,8 +232,8 @@ module API
 
       consequences = vep.flat_map { |x| x[:consequence] }
                         .uniq
-                        .map { |x| SequenceOntology.find_by_key(x) }
-      consequences = (SequenceOntology::CONSEQUENCES_IN_ORDER & consequences).map { |x| x.key }
+                        .map { |x| QueryParameters::Consequence.find_by_id(x) }
+      consequences = (QueryParameters::Consequence::ALL & consequences).map { |x| x.id }
       consequences = consequences.join(ITEMS_SEPARATOR) if type == :csv
 
       sift = vep.map { |x| x[:sift] }.compact.min
