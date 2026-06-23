@@ -177,7 +177,7 @@ class VariantSearchService
         json.genes gene_symbols(variant)
 
         if variant.key?(:conditions)
-          json.conditions conditions(variant)
+          json.significance conditions(variant)
         end
 
         json.most_severe_consequence SequenceOntology.find_by_key(variant[:most_severe_consequence])&.id
