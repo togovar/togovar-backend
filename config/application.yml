@@ -491,15 +491,15 @@ shared:
           label: Other
           key: O
           default: '1'
-        - id: vus_high
+        - id: vus-high
           label: VUS-high
           key: VH
           default: '1'
-        - id: vus_mid
+        - id: vus-mid
           label: VUS-mid
           key: VM
           default: '1'
-        - id: vus_low
+        - id: vus-low
           label: VUS-low
           key: VL
           default: '1'
