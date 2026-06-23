@@ -351,26 +351,26 @@ shared:
             ac: allele_alt
             an: allele_total
             af: alt_allele_freq
-        - id: gnomad_sv
-          label: gnomAD SV
-          filter: true
-          api:
-            description: "[The Genome Aggregation Database (gnomAD SV)](https://gnomad.broadinstitute.org)"
-          groups:
-            - gnomad_sv.afr
-            - gnomad_sv.ami
-            - gnomad_sv.amr
-            - gnomad_sv.asj
-            - gnomad_sv.eas
-            - gnomad_sv.fin
-            - gnomad_sv.mid
-            - gnomad_sv.nfe
-            - gnomad_sv.rmi
-            - gnomad_sv.sas
-          download:
-            ac: allele_alt
-            an: allele_total
-            af: alt_allele_freq
+#        - id: gnomad_sv
+#          label: gnomAD SV
+#          filter: true
+#          api:
+#            description: "[The Genome Aggregation Database (gnomAD SV)](https://gnomad.broadinstitute.org)"
+#          groups:
+#            - gnomad_sv.afr
+#            - gnomad_sv.ami
+#            - gnomad_sv.amr
+#            - gnomad_sv.asj
+#            - gnomad_sv.eas
+#            - gnomad_sv.fin
+#            - gnomad_sv.mid
+#            - gnomad_sv.nfe
+#            - gnomad_sv.rmi
+#            - gnomad_sv.sas
+#          download:
+#            ac: allele_alt
+#            an: allele_total
+#            af: alt_allele_freq
       condition:
         - id: clinvar
           label: ClinVar
@@ -402,18 +402,18 @@ shared:
           label: MNV
           key: SO_1000002
           default: '1'
-        - id: DUP
-          label: Duplication
-          key: SO_1000035
-          default: '1'
-        - id: INV
-          label: Inversion
-          key: SO_1000036
-          default: '1'
-        - id: BND
-          label: Breakend
-          key: SO_0001021
-          default: '1'
+#        - id: DUP
+#          label: Duplication
+#          key: SO_1000035
+#          default: '1'
+#        - id: INV
+#          label: Inversion
+#          key: SO_1000036
+#          default: '1'
+#        - id: BND
+#          label: Breakend
+#          key: SO_0001021
+#          default: '1'
       significance:
         - id: not_available
           label: Not available
