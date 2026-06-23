@@ -93,12 +93,14 @@ class VariantSearchService
       QueryParameters::Type.all.each do |t|
         next if types.find { |x| x[:key] == t.id }
 
-        types << { key: t.key, doc_count: 0 }
+        types << { key: t.id, doc_count: 0 }
       end
 
       json.type do
         types.each do |x|
-          json.set! QueryParameters::Type.find_by_id(x[:key])&.key, x[:doc_count]
+          if (t = QueryParameters::Type.find_by_id(x[:key]))
+            json.set! t.key, x[:doc_count]
+          end
         end
       end
     end
@@ -129,7 +131,7 @@ class VariantSearchService
       QueryParameters::Consequence.all.each do |t|
         next if consequences.find { |x| x[:key] == t.id }
 
-        consequences << { key: t.key, doc_count: 0 }
+        consequences << { key: t.id, doc_count: 0 }
       end
 
       json.consequence do
