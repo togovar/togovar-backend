@@ -450,6 +450,7 @@ class VariantSearchService
       query[:size] = 0
       query.delete(:from)
       query.delete(:sort)
+      query.delete(:search_after)
 
       query.merge(Variant::QueryHelper.statistics(@options[:user]))
     end

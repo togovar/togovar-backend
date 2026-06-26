@@ -39,9 +39,17 @@ module API
       def variant_params
         return super unless request.get?
 
-        @variant_params ||= params.permit :term, :quality, :limit, :offset, :stat, :data, :debug, :expand_dataset,
-                                          dataset: {}, frequency: {}, type: {}, significance: {}, consequence: {},
-                                          sscv_db: {}, sift: {}, polyphen: {}, alphamissense: {}, cadd_phred: {}
+        return @variant_params if @variant_params
+
+        @variant_params = params.permit :term, :quality, :limit, :offset, :stat, :data, :debug, :expand_dataset,
+                                        dataset: {}, frequency: {}, type: {}, significance: {}, consequence: {},
+                                        sscv_db: {}, sift: {}, polyphen: {}, alphamissense: {}, cadd_phred: {}
+
+        if (position_offset = params.permit(offset: [])).present?
+          @variant_params.merge!(position_offset)
+        end
+
+        @variant_params
       end
 
       # @return [Array] [result, status]
