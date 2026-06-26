@@ -26,7 +26,7 @@ class SearchDisease < ActiveInteraction::Base
       size: 100
     }
 
-    DiseaseMondo.search(query).results.map do |r|
+    Mondo.search(query).results.map do |r|
       {
         id: r.dig(:_source, :mondo),
         cui: r.dig(:_source, :cui),

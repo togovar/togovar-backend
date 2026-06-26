@@ -37,8 +37,8 @@ module TogoVar
                         if terms.any? { |x| %w[MONDO_0000001 C0012634].include?(x&.strip) }
                           exists field: 'conditions.condition.medgen'
                         else
-                          terms = sub_concepts ? terms.map { |x| [x, DiseaseMondo.sub_concepts(x)] }.flatten.uniq : terms
-                          terms = terms.map { |x| x.start_with?('MONDO_') ? DiseaseMondo.mondo2cui(x) : x }.flatten.uniq
+                          terms = sub_concepts ? terms.map { |x| [x, Mondo.sub_concepts(x)] }.flatten.uniq : terms
+                          terms = terms.map { |x| x.start_with?('MONDO_') ? Mondo.mondo2cui(x) : x }.flatten.uniq
 
                           terms 'conditions.condition.medgen': terms
                         end

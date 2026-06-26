@@ -1,5 +1,5 @@
-class DiseaseMondo
-  include DiseaseMondo::Searchable
+class Mondo
+  include Mondo::Searchable
   include Queryable
 
   class << self

@@ -1,4 +1,4 @@
-class DiseaseMondo
+class Mondo
   module Searchable
     extend ActiveSupport::Concern
     include ElasticsearchIndex::Base
@@ -6,7 +6,7 @@ class DiseaseMondo
     included do
       include Elasticsearch::Model
 
-      index_name :disease_mondo
+      index_name :mondo
     end
   end
 end

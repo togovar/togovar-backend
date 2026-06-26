@@ -10,6 +10,17 @@ class Disease
     end
 
     module ClassMethods
+      # @param [Integer] id tgv ID
+      def find(id)
+        query = Elasticsearch::DSL::Search.search do
+          query do
+            term id:
+          end
+        end
+
+        super(query)
+      end
+
       # @param [String] keyword
       # @return [Elasticsearch::Model::Response] response
       def suggest(keyword)

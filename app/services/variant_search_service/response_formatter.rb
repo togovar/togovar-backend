@@ -315,18 +315,29 @@ class VariantSearchService
       @conditions ||= Hash.new { |hash, key| hash[key] = Disease.find(key)&.[](:name) }
 
       Array(variant[:conditions]).flat_map do |condition|
-        (condition[:condition].presence || [{}]).map do |x|
+        Array(condition[:condition]).map do |c|
+          conditions = if c[:medgen].present?
+                         Array(c[:medgen]).sort(&MEDGEN_COMPARATOR)
+                                          .map do |v|
+                           {
+                             name: @conditions[v] || QueryParameters::ClinicalSignificance::LABEL_NOT_PROVIDED,
+                             medgen: v
+                           }
+                         end
+                       elsif c[:pref_name].present?
+                         Array(c[:pref_name]).map { |v| { name: v } }
+                       else
+                         []
+                       end
+
+          interpretations = Array(c[:classification]).filter_map do |y|
+            QueryParameters::ClinicalSignificance.find_by_id(y)&.key
+          end
+
           {
-            conditions: if x[:medgen].present?
-                          Array(x[:medgen]).sort(&MEDGEN_COMPARATOR)
-                                           .map { |v| { name: @conditions[v] || QueryParameters::ClinicalSignificance::LABEL_NOT_PROVIDED, medgen: v } }
-                        elsif x[:pref_name].present?
-                          Array(x[:pref_name]).map { |v| { name: v } }
-                        else
-                          []
-                        end,
-            interpretations: Array(x[:classification]).filter_map { |y| QueryParameters::ClinicalSignificance.find_by_id(y)&.key },
-            submission_count: x[:submission_count],
+            conditions:,
+            interpretations:,
+            submission_count: c[:submission_count],
             source: condition[:source]
           }.compact
         end
