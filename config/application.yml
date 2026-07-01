@@ -683,6 +683,10 @@ shared:
           key: SO_0001060
           default: '1'
       sscv_db:
+        - id: without_annotation
+          label: Without annotation
+          key: NA
+          default: '1'
         - id: Partial_exon_loss
           label: Partial exon loss
           key: PEL
@@ -702,7 +706,7 @@ shared:
       sift:
         - id: without_score
           label: Without score
-          key: N
+          key: NA
           default: '1'
         - id: deleterious
           label: Deleterious
@@ -715,7 +719,7 @@ shared:
       polyphen:
         - id: without_score
           label: Without score
-          key: N
+          key: NA
           default: '1'
         - id: probabl_damaging
           label: Probably Damaging
@@ -736,7 +740,7 @@ shared:
       alphamissense:
         - id: without_score
           label: Without score
-          key: N
+          key: NA
           default: '1'
         - id: likely_pathogenic
           label: Likely pathogenic
@@ -753,7 +757,7 @@ shared:
       cadd_phred:
         - id: without_score
           label: Without score
-          key: N
+          key: NA
           default: '1'
         - id: p0
           label: PHRED Score < 10

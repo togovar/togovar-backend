@@ -293,17 +293,37 @@ class VariantSearchService
 
       return self if values.empty?
 
+      without_annotation = values.delete(:NA)
+
       values = values.map { |x| QueryParameters::SscvDb.find_by_key(x)&.id }
                      .compact
 
-      ::Rails.logger.info "SSCV DB: #{values}"
-
       @sscv_db_condition = Elasticsearch::DSL::Search.search do
         query do
-          nested do
-            path :sscv_db
-            query do
-              terms 'sscv_db.predicted_splicing_type': values
+          bool do
+            if without_annotation
+              should do
+                bool do
+                  must_not do
+                    nested do
+                      path 'sscv_db'
+                      query do
+                        exists field: 'sscv_db'
+                      end
+                    end
+                  end
+                end
+              end
+            end
+            if values.present?
+              should do
+                nested do
+                  path :sscv_db
+                  query do
+                    terms 'sscv_db.predicted_splicing_type': values
+                  end
+                end
+              end
             end
           end
         end
@@ -324,12 +344,10 @@ class VariantSearchService
           bool do
             values.each do |x|
               should do
-                if x == :N
+                if x == :NA
                   bool do
                     must_not do
-                      exists do
-                        field 'sift'
-                      end
+                      exists field: 'sift'
                     end
                   end
                 else
@@ -362,12 +380,10 @@ class VariantSearchService
           bool do
             values.each do |x|
               should do
-                if x == :N
+                if x == :NA
                   bool do
                     must_not do
-                      exists do
-                        field 'polyphen'
-                      end
+                      exists field: 'polyphen'
                     end
                   end
                 else
@@ -407,12 +423,10 @@ class VariantSearchService
           bool do
             values.each do |x|
               should do
-                if x == :N
+                if x == :NA
                   bool do
                     must_not do
-                      exists do
-                        field 'alphamissense'
-                      end
+                      exists field: 'alphamissense'
                     end
                   end
                 else
@@ -450,12 +464,10 @@ class VariantSearchService
           bool do
             values.each do |x|
               should do
-                if x == :N
+                if x == :NA
                   bool do
                     must_not do
-                      exists do
-                        field 'cadd_phred'
-                      end
+                      exists field: 'cadd_phred'
                     end
                   end
                 else
