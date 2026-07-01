@@ -36,14 +36,36 @@ class VariantSearchService
     def validate; end
 
     def results
-      Variant.search(query).records.results
+      Rails.logger.debug { 'Search variants' }
+
+      Variant.search(query, request_cache: true).records.results
     end
 
     def filtered_count
+      Rails.logger.debug { 'Count filtered variants' }
+
       Variant.count(body: query.slice(:query))
     end
 
     private
+
+    def total_count
+      Rails.logger.debug { 'Count all variants' }
+
+      Variant::QueryHelper.total(@options[:user])
+    end
+
+    def statistics_count
+      Rails.logger.debug { 'Count statistics' }
+
+      Variant.search(stat_query, request_cache: true).aggregations.to_hash
+    end
+
+    def condition_absence_count
+      Rails.logger.debug { 'Count condition absence' }
+
+      Variant::QueryHelper.count_conditions_absence(builder.build)
+    end
 
     def stat_query
       builder.stat_query.tap { |q| debug[:stat_query] = q if @options[:debug] }
@@ -53,11 +75,11 @@ class VariantSearchService
       @param ||= Parameters.new(@params, user: @options[:user])
     end
 
-    BINARY_FILTERS = %i[dataset type significance consequence sscv_db sift polyphen alphamissense].freeze
+    BINARY_FILTERS = %i[dataset type significance consequence sscv_db sift polyphen alphamissense cadd_phred].freeze
 
     def builder
       @builder ||= begin
-                     builder = VariantSearchService::QueryBuilder.new(user: @options[:user])
+                     builder = VariantSearchService::QueryBuilder.new(user: @options[:user], filter: param.filter?)
 
                      builder.term(param.term) if param.term.present?
 
@@ -68,7 +90,7 @@ class VariantSearchService
                        builder.from = 0
                        builder.size = 0
                      else
-                       builder.dataset(param.selected_items(:dataset), param.selected_items(:significance))
+                       builder.dataset(param.selected_items(:dataset))
 
                        unless param.frequency == QueryParameters::Frequency.defaults
                          builder.frequency(param.selected_items(:dataset),
@@ -78,7 +100,7 @@ class VariantSearchService
                                            param.frequency[:match] == 'all')
                        end
 
-                       %i[type significance consequence sscv_db sift polyphen alphamissense].each do |x|
+                       %i[type significance consequence sscv_db sift polyphen alphamissense cadd_phred].each do |x|
                          unless param.selected_all?(x)
                            builder.send(x, *param.selected_items(x))
                          end
@@ -103,18 +125,17 @@ class VariantSearchService
       return empty_result if BINARY_FILTERS.map { |x| param.selected_none?(x) }.any?
 
       param.term = hgvs_notation_to_location(param.term)
-      res = Variant.search(query, request_cache: true)
 
       hash = {}
 
       if param.stat?
-        hash.merge!(total: Variant::QueryHelper.total(@options[:user]),
+        hash.merge!(total: total_count,
                     filtered: filtered_count,
-                    aggs: param.stat? ? Variant.search(stat_query, request_cache: true).aggregations.to_hash : {},
-                    count_condition_absence: Variant::QueryHelper.count_conditions_absence(builder.build))
+                    aggs: param.stat? ? statistics_count : {},
+                    count_condition_absence: condition_absence_count)
       end
 
-      hash.merge!(results: res.records.results) if param.data?
+      hash.merge!(results:) if param.data?
 
       hash
     end
@@ -147,6 +168,7 @@ class VariantSearchService
       attr_reader :sift
       attr_reader :polyphen
       attr_reader :alphamissense
+      attr_reader :cadd_phred
 
       attr_reader :expand_dataset
 
@@ -171,6 +193,7 @@ class VariantSearchService
         @sift = QueryParameters::Sift.defaults(params.fetch(:sift, {}))
         @polyphen = QueryParameters::Polyphen.defaults(params.fetch(:polyphen, {}))
         @alphamissense = QueryParameters::AlphaMissense.defaults(params.fetch(:alphamissense, {}))
+        @cadd_phred = QueryParameters::CaddPhred.defaults(params.fetch(:cadd_phred, {}))
 
         @expand_dataset = params.key?(:expand_dataset)
 
@@ -192,6 +215,7 @@ class VariantSearchService
       end
 
       DISABLE_VALUES = %w[0 f false]
+      ENABLE_VALUES = %w[1 t true]
 
       def stat?
         !DISABLE_VALUES.include?(@stat.to_s)
@@ -201,26 +225,24 @@ class VariantSearchService
         !DISABLE_VALUES.include?(@data.to_s)
       end
 
+      def filter?
+        !DISABLE_VALUES.include?(@quality.to_s)
+      end
+
       def term
         @term&.strip
       end
 
       def selected_items(attr_name)
-        return nil unless %i[dataset type significance consequence sscv_db sift polyphen alphamissense].include?(attr_name.to_sym)
-
-        send(attr_name).select { |_, v| v == '1' }.keys
+        send(attr_name).select { |_, v| ENABLE_VALUES.include?(v) }.keys
       end
 
       def selected_all?(attr_name)
-        return nil unless %i[dataset type significance consequence sscv_db sift polyphen alphamissense].include?(attr_name.to_sym)
-
-        send(attr_name).all? { |_, v| v == '1' }
+        send(attr_name).all? { |_, v| ENABLE_VALUES.include?(v) }
       end
 
       def selected_any?(attr_name)
-        return nil unless %i[dataset type significance consequence sscv_db sift polyphen alphamissense].include?(attr_name.to_sym)
-
-        send(attr_name).any? { |_, v| v == '1' }
+        send(attr_name).any? { |_, v| ENABLE_VALUES.include?(v) }
       end
 
       def selected_none?(attr_name)
@@ -228,7 +250,7 @@ class VariantSearchService
       end
 
       def to_hash
-        %i[term dataset frequency quality type significance consequence sscv_db sift polyphen alphamissense expand_dataset].map do |name|
+        %i[term dataset frequency quality type significance consequence sscv_db sift polyphen alphamissense cadd_phred expand_dataset].map do |name|
           [name, ((v = send(name)).respond_to?(:to_h) ? v.to_h : v)]
         end.to_h
       end

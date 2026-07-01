@@ -30,10 +30,8 @@ module TogoVar
                        path :xref
                        query do
                          bool do
-                           must do
-                             match 'xref.source': 'dbSNP'
-                           end
-                           must do
+                           filter({ match: { 'xref.source': 'dbSNP' } })
+                           filter do
                              terms 'xref.id': rs_id
                            end
                          end

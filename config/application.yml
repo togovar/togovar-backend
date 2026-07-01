@@ -88,9 +88,11 @@ shared:
             hoc: genotype_hemi_othre_alts
         - id: bbj1k
           label: BBJ1k
+          filter: true
           alias: jga_wgs.jgad000758
         - id: bbj2k
           label: BBJ2k
+          filter: true
           alias: jga_wgs.jgad000868
         - &jga_wes
           id: jga_wes
@@ -661,15 +663,15 @@ shared:
           key: SO_0001782
           default: '1'
         - id: regulatory_region_ablation
-          label: TF binding site variant
+          label: Regulatory region ablation
           key: SO_0001894
           default: '1'
         - id: regulatory_region_amplification
-          label: Regulatory region ablation
+          label: Regulatory region amplification
           key: SO_0001891
           default: '1'
         - id: regulatory_region_variant
-          label: Regulatory region amplification
+          label: Regulatory region variant
           key: SO_0001566
           default: '1'
         - id: intergenic_variant
@@ -747,6 +749,23 @@ shared:
         - id: likely_benign
           label: Likely benign
           key: LB
+          default: '1'
+      cadd_phred:
+        - id: without_score
+          label: Without score
+          key: N
+          default: '1'
+        - id: p0
+          label: PHRED Score < 10
+          key: P0
+          default: '1'
+        - id: p10
+          label: PHRED Score >= 10
+          key: P10
+          default: '1'
+        - id: p20
+          label: PHRED Score >=20
+          key: P20
           default: '1'
       frequency:
         - id: from

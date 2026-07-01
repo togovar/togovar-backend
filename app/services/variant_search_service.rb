@@ -58,7 +58,7 @@ class VariantSearchService
   end
 
   def results
-    Variant.search(query).records.results
+    Variant.search(query, request_cache: true).records.results
   end
 
   def filtered_count

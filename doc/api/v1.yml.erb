@@ -391,8 +391,9 @@ components:
               query:
                 oneOf:
                   - $ref: '#/components/schemas/ID'
-                  - $ref: '#/components/schemas/Location'
                   - $ref: '#/components/schemas/VariantType'
+                  - $ref: '#/components/schemas/Location'
+                  - $ref: '#/components/schemas/Variant'
                   - $ref: '#/components/schemas/VariantConsequence'
                   - $ref: '#/components/schemas/VariantFrequency'
                   - $ref: '#/components/schemas/ClinicalSignificance'
@@ -465,6 +466,8 @@ components:
               $ref: '#/components/examples/SearchVariant-11'
             Example12:
               $ref: '#/components/examples/SearchVariant-12'
+            Example13:
+              $ref: '#/components/examples/SearchVariant-13'
 
     SearchGene:
       description: Schema for searching gene
@@ -567,36 +570,47 @@ components:
               type: string
               description: chromosome name
               enum:
-                - "1"
-                - "2"
-                - "3"
-                - "4"
-                - "5"
-                - "6"
-                - "7"
-                - "8"
-                - "9"
-                - "10"
-                - "11"
-                - "12"
-                - "13"
-                - "14"
-                - "15"
-                - "16"
-                - "17"
-                - "18"
-                - "19"
-                - "20"
-                - "21"
-                - "22"
-                - X
-                - Y
-                - M
-                - MT
+              <% %w[1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y M MT].each do |x| %>
+              <%= "- \"#{x}\"" %>
+              <%= "- chr#{x}" %>
+              <% end %>
             position:
               oneOf:
                 - type: integer
                 - $ref: '#/components/schemas/Range'
+
+    Variant:
+      type: object
+      additionalProperties: false
+      required:
+        - variant
+      properties:
+        variant:
+          type: object
+          additionalProperties: false
+          required:
+            - chromosome
+            - position
+            - reference
+            - alternate
+          properties:
+            chromosome:
+              type: string
+              description: chromosome name
+              enum:
+              <% %w[1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 X Y M MT].each do |x| %>
+              <%= "- \"#{x}\"" %>
+              <%= "- chr#{x}" %>
+              <% end %>
+            position:
+              type: integer
+              description: position
+            reference:
+              type: string
+              description: reference allele
+            alternate:
+              type: string
+              description: alternate allele
 
     VariantType:
       type: object
@@ -1140,6 +1154,7 @@ components:
             oneOf:
               - $ref: '#/components/schemas/ID'
               - $ref: '#/components/schemas/Location'
+              - $ref: '#/components/schemas/Variant'
               - $ref: '#/components/schemas/VariantType'
               - $ref: '#/components/schemas/VariantConsequence'
               - $ref: '#/components/schemas/VariantFrequency'
@@ -1167,8 +1182,9 @@ components:
             type: object
             oneOf:
               - $ref: '#/components/schemas/ID'
-              - $ref: '#/components/schemas/Location'
               - $ref: '#/components/schemas/VariantType'
+              - $ref: '#/components/schemas/Location'
+              - $ref: '#/components/schemas/Variant'
               - $ref: '#/components/schemas/VariantConsequence'
               - $ref: '#/components/schemas/VariantFrequency'
               - $ref: '#/components/schemas/ClinicalSignificance'
@@ -1587,9 +1603,9 @@ components:
           type:
             relation: eq
             terms:
-              - ins
-              - del
-              - indel
+              - INS
+              - DEL
+              - INDEL
 
     SearchVariant-2:
       summary: List variants by identifiers (tgv, rs)
@@ -1600,7 +1616,7 @@ components:
             - rs114202595
 
     SearchVariant-3:
-      summary: List variants exist on an exact position
+      summary: List variants at an position
       value:
         query:
           location:
@@ -1608,7 +1624,7 @@ components:
             position: 48258198
 
     SearchVariant-4:
-      summary: List variants exist in a certain range
+      summary: List variants in a range
       value:
         query:
           location:
@@ -1618,6 +1634,16 @@ components:
               lte: 73376976
 
     SearchVariant-5:
+      summary: List variants at an position with ref/alt allele
+      value:
+        query:
+          variant:
+            chromosome: "12"
+            position: 111803962
+            reference: G
+            alternate: A
+
+    SearchVariant-6:
       summary: List variants range from 0.05 to 0.95 in frequency in JGA-WES.
       value:
         query:
@@ -1637,7 +1663,7 @@ components:
                   lte: 1.0
                 filtered: true
 
-    SearchVariant-6:
+    SearchVariant-7:
       summary: List variants by genotype count.
       value:
         query:
@@ -1648,7 +1674,7 @@ components:
                 gte: 5
             filtered: true
 
-    SearchVariant-7:
+    SearchVariant-8:
       summary: List variants exist on ALDH2 (Aldehyde Dehydrogenase 2 family member).
       value:
         query:
@@ -1657,7 +1683,7 @@ components:
             terms:
               - 404
 
-    SearchVariant-8:
+    SearchVariant-9:
       summary: List variants associated with C2675520 (Breast-ovarian cancer, familial 2).
       value:
         query:
@@ -1666,7 +1692,7 @@ components:
             terms:
               - C2675520
 
-    SearchVariant-9:
+    SearchVariant-10:
       summary: List variants associated with MONDO_0003582 (hereditary breast ovarian cancer syndrome).
       value:
         query:
@@ -1675,7 +1701,7 @@ components:
             terms:
               - MONDO_0003582
 
-    SearchVariant-10:
+    SearchVariant-11:
       summary: Paginate result over 10,000 records.
       value:
         offset:
@@ -1685,7 +1711,7 @@ components:
           - A
         limit: 100
 
-    SearchVariant-11:
+    SearchVariant-12:
       summary: List variants by prediction score
       value:
         query:
@@ -1703,7 +1729,7 @@ components:
                   gt: 0.564
                   lte: 1
 
-    SearchVariant-12:
+    SearchVariant-13:
       summary: List variants by prediction score unassigned or unknown
       value:
         query:

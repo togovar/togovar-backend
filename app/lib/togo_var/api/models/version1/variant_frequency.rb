@@ -60,11 +60,11 @@ module TogoVar
                   path :frequency
                   query do
                     bool do
-                      must models[:dataset] if models[:dataset]
-                      must models[:frequency] if models[:frequency]
-                      must models[:count] if models[:count]
-                      must models[:genotype] if models[:genotype]
-                      must { match 'frequency.filter': 'PASS' } if filtered.present?
+                      filter models[:dataset] if models[:dataset]
+                      filter models[:frequency] if models[:frequency]
+                      filter models[:count] if models[:count]
+                      filter models[:genotype] if models[:genotype]
+                      filter({ match: { 'frequency.filter': 'PASS' } }) if filtered.present?
                     end
                   end
                 end

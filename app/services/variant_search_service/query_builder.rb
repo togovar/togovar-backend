@@ -73,7 +73,7 @@ class VariantSearchService
       self
     end
 
-    def dataset(datasets, significance)
+    def dataset(datasets)
       @dataset_condition = nil
 
       user = @options[:user]
@@ -81,84 +81,85 @@ class VariantSearchService
 
       return self if (datasets & Variant.all_datasets(user)).empty?
 
-      interpretations = significance.filter_map { |x| QueryParameters::ClinicalSignificance.find_by_key(x)&.id }
+      frequency_datasets = datasets & Variant.frequency_datasets(user)
+      filter_datasets = Variant.frequency_datasets(user, filter: true)
+      non_filter_datasets = Variant.frequency_datasets(user, filter: false)
 
-      query = Elasticsearch::DSL::Search.search do
+      q1 = if frequency_datasets.present?
+             Elasticsearch::DSL::Search.search do
+               query do
+                 bool do
+                   should do
+                     bool do
+                       filter do
+                         nested do
+                           path :frequency
+                           query do
+                             terms 'frequency.source': frequency_datasets
+                           end
+                         end
+                       end
+                       if filter && (filter_datasets.present? || non_filter_datasets.present?)
+                         filter do
+                           bool do
+                             if filter_datasets.present?
+                               should do
+                                 nested do
+                                   path :frequency
+                                   query do
+                                     bool do
+                                       filter do
+                                         terms 'frequency.source': Variant.resolve_alias(user, filter_datasets)
+                                       end
+                                       filter do
+                                         term 'frequency.filter': 'PASS'
+                                       end
+                                     end
+                                   end
+                                 end
+                               end
+                             end
+                             if non_filter_datasets.present?
+                               should do
+                                 terms 'frequency.source': Variant.resolve_alias(user, non_filter_datasets)
+                               end
+                             end
+                           end
+                         end
+                       end
+                     end
+                   end
+                 end
+               end
+             end.to_hash.dig(:query, :bool, :should, 0)
+           end
+
+      q2 = if (v = datasets & Variant.condition_datasets(user)).present?
+             Elasticsearch::DSL::Search.search do
+               query do
+                 bool do
+                   should do
+                     nested do
+                       path :conditions
+                       query do
+                         terms 'conditions.source': v
+                       end
+                     end
+                   end
+                 end
+               end
+             end.to_hash.dig(:query, :bool, :should, 0)
+           end
+
+      @dataset_condition = Elasticsearch::DSL::Search.search do
         query do
           bool do
-            if filter
-              if (v = datasets & Variant.frequency_datasets(user, filter: true)).present?
-                should do
-                  nested do
-                    path :frequency
-                    query do
-                      bool do
-                        must do
-                          terms 'frequency.source': Variant.resolve_alias(user, v)
-                        end
-                        must do
-                          match 'frequency.filter': 'PASS'
-                        end
-                      end
-                    end
-                  end
-                end
-              end
-              if (v = datasets & Variant.frequency_datasets(user, filter: false)).present?
-                should do
-                  nested do
-                    path :frequency
-                    query do
-                      terms 'frequency.source': Variant.resolve_alias(user, v)
-                    end
-                  end
-                end
-              end
-            else
-              if (v = datasets & Variant.frequency_datasets(user)).present?
-                should do
-                  nested do
-                    path :frequency
-                    query do
-                      terms 'frequency.source': Variant.resolve_alias(user, v)
-                    end
-                  end
-                end
-              end
-              if (v = datasets & Variant.condition_datasets(user)).present?
-                should do
-                  nested do
-                    path :conditions
-                    query do
-                      terms 'conditions.source': v
-                    end
-                  end
-                end
-                if interpretations.include?('not_available')
-                  should do
-                    bool do
-                      must_not do
-                        nested do
-                          path 'conditions'
-                          query do
-                            exists field: 'conditions'
-                          end
-                        end
-                      end
-                    end
-                  end
-                end
-              end
-            end
+            should(q1) if q1
+            should(q2) if q2
+            minimum_should_match 1
           end
         end
       end.to_hash[:query]
-
-      @dataset_condition = if query[:bool][:should].size == 1
-                             query[:bool][:should].first
-                           else
-                             query
-                           end
 
       self
     end
@@ -174,14 +175,14 @@ class VariantSearchService
         query do
           bool do
             sources.each do |source|
-              send(all_datasets ? :must : :should) do
+              send(all_datasets ? :filter : :should) do
                 nested do
                   path :frequency
                   query do
                     bool do
-                      must { match 'frequency.source': source }
+                      filter({ match: { 'frequency.source': source } })
                       if invert
-                        must do
+                        filter do
                           bool do
                             must_not do
                               range 'frequency.af' do
@@ -192,7 +193,7 @@ class VariantSearchService
                           end
                         end
                       else
-                        must do
+                        filter do
                           range 'frequency.af' do
                             gte frequency_from.to_f
                             lte frequency_to.to_f
@@ -211,14 +212,16 @@ class VariantSearchService
       self
     end
 
-    def type(*keys)
+    def type(*values)
       @type_condition = nil
 
-      return self if keys.empty?
+      type = values.filter_map { |x| QueryParameters::Type.find_by_key(x)&.id }
+
+      return self if type.empty?
 
       @type_condition = Elasticsearch::DSL::Search.search do
         query do
-          terms type: keys.map { |x| SequenceOntology.find(x)&.label }.compact
+          terms type:
         end
       end.to_hash[:query]
 
@@ -229,8 +232,9 @@ class VariantSearchService
       @significance_condition = nil
 
       interpretations = values.filter_map { |x| QueryParameters::ClinicalSignificance.find_by_key(x)&.id }
+      not_available = interpretations.delete('not_available')
 
-      return self if !values.include?(:NA) && interpretations.blank?
+      return self if !not_available && interpretations.blank?
 
       @significance_condition = Elasticsearch::DSL::Search.search do
         query do
@@ -245,7 +249,7 @@ class VariantSearchService
                 end
               end
             end
-            if interpretations.delete('not_available')
+            if not_available
               should do
                 bool do
                   must_not do
@@ -269,7 +273,7 @@ class VariantSearchService
     def consequence(*values)
       @consequence_condition = nil
 
-      consequence = values.filter_map { |x| SequenceOntology.find(x)&.key }
+      consequence = values.filter_map { |x| QueryParameters::Consequence.find_by_key(x)&.id }
 
       return self if consequence.empty?
 
@@ -289,7 +293,7 @@ class VariantSearchService
 
       return self if values.empty?
 
-      values = values.map { |v| QueryParameters::SscvDb.find_by_key(v)&.key }
+      values = values.map { |x| QueryParameters::SscvDb.find_by_key(x)&.id }
                      .compact
 
       ::Rails.logger.info "SSCV DB: #{values}"
@@ -434,6 +438,48 @@ class VariantSearchService
       self
     end
 
+    def cadd_phred(*values)
+      @cadd_phred_condition = nil
+
+      values &= QueryParameters::CaddPhred.parameters
+
+      return self if values.empty?
+
+      @cadd_phred_condition = Elasticsearch::DSL::Search.search do
+        query do
+          bool do
+            values.each do |x|
+              should do
+                if x == :N
+                  bool do
+                    must_not do
+                      exists do
+                        field 'cadd_phred'
+                      end
+                    end
+                  end
+                else
+                  range 'cadd_phred' do
+                    case x
+                    when :P0
+                      lt 10
+                    when :P10
+                      gte 10
+                      lt 20
+                    else
+                      gte 20
+                    end
+                  end
+                end
+              end
+            end
+          end
+        end
+      end.to_hash[:query]
+
+      self
+    end
+
     def limit(size)
       @size = size
       self
@@ -458,7 +504,7 @@ class VariantSearchService
     def build
       conditions = []
 
-      conditions << default_condition
+      conditions << Variant.default_condition
       conditions << @term_condition
       conditions << @dataset_condition
       conditions << @frequency_condition
@@ -469,13 +515,14 @@ class VariantSearchService
       conditions << @sift_condition
       conditions << @polyphen_condition
       conditions << @alphamissense_condition
+      conditions << @cadd_phred_condition
 
       conditions.compact!
 
       query = if conditions.size == 1
                 { query: conditions.first }
               else
-                { query: { bool: { must: conditions } } }
+                { query: { bool: { filter: conditions } } }
               end
 
       query[:size] = @size
@@ -490,10 +537,6 @@ class VariantSearchService
     end
 
     private
-
-    def default_condition
-      Variant.default_condition
-    end
 
     def tgv_condition(term)
       query = Elasticsearch::DSL::Search.search do
@@ -512,10 +555,8 @@ class VariantSearchService
             path :xref
             query do
               bool do
-                must do
-                  match 'xref.source': 'dbSNP'
-                end
-                must do
+                filter({ match: { 'xref.source': 'dbSNP' } })
+                filter do
                   terms 'xref.id': Array(term)
                 end
               end
@@ -528,50 +569,70 @@ class VariantSearchService
     end
 
     def region_condition(chr, from, to, ref, alt)
-      query = Elasticsearch::DSL::Search.search do
+      position = Elasticsearch::DSL::Search.search do
         query do
           bool do
-            must { match 'chromosome': chr }
-            must do
+            should do
               bool do
-                should do
-                  bool do
-                    must { range(:position_start) { lte from.to_i } }
-                    must { range(:position_end) { gte to.to_i } }
+                filter do
+                  range(:position_start) do
+                    lte from.to_i
                   end
                 end
-                should do
-                  bool do
-                    must { range(:position_start) { gte from.to_i } }
-                    must { range(:position_end) { lte to.to_i } }
-                  end
-                end
-                should do
-                  bool do
-                    must { range(:position_start) { lte from.to_i } }
-                    must do
-                      range(:position_end) do
-                        gte from.to_i
-                        lte to.to_i
-                      end
-                    end
-                  end
-                end
-                should do
-                  bool do
-                    must do
-                      range(:position_start) do
-                        gte from.to_i
-                        lte to.to_i
-                      end
-                    end
-                    must { range(:position_end) { gt from.to_i } }
+                filter do
+                  range(:position_end) do
+                    gte to.to_i
                   end
                 end
               end
             end
-            must { match reference: ref } if ref.present?
-            must { match alternate: alt } if alt.present?
+            should do
+              bool do
+                filter do
+                  range(:position_start) { gte from.to_i }
+                end
+                filter do
+                  range(:position_end) { lte to.to_i }
+                end
+              end
+            end
+            should do
+              bool do
+                filter do
+                  range(:position_start) { lte from.to_i }
+                end
+                filter do
+                  range(:position_end) do
+                    gte from.to_i
+                    lte to.to_i
+                  end
+                end
+              end
+            end
+            should do
+              bool do
+                filter do
+                  range(:position_start) do
+                    gte from.to_i
+                    lte to.to_i
+                  end
+                end
+                filter do
+                  range(:position_end) { gt from.to_i }
+                end
+              end
+            end
+          end
+        end
+      end.to_hash[:query]
+
+      query = Elasticsearch::DSL::Search.search do
+        query do
+          bool do
+            filter({ match: { chromosome: chr } })
+            filter(position)
+            filter({ match: { reference: ref } }) if ref.present?
+            filter({ match: { alternate: alt } }) if alt.present?
           end
         end
       end

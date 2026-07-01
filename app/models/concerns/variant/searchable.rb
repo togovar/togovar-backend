@@ -202,7 +202,7 @@ class Variant
 
             aggregation :vep_consequences do
               cardinality do
-                field :'most_severe_consequence'
+                field :'vep.consequence'
               end
             end
           end
@@ -272,7 +272,7 @@ class Variant
         q[:_source] = false
         q.delete(:from)
 
-        while (res = search(q).records.results.results).present?
+        while (res = search(q, request_cache: true).records.results.results).present?
           res.each do |r|
             fields = r.delete(:fields)
 

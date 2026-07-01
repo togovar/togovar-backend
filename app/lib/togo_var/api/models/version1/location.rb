@@ -48,13 +48,13 @@ module TogoVar
             Elasticsearch::DSL::Search.search do
               query do
                 bool do
-                  must model[:chromosome] if model[:chromosome]
+                  filter model[:chromosome] if model[:chromosome]
                   if gt_or_gte && lt_or_lte
-                    must(&closed_range(gt_or_gte, from, lt_or_lte, to))
+                    filter(closed_range(gt_or_gte, from, lt_or_lte, to))
                   elsif lt_or_lte
-                    must(&left_open_range(lt_or_lte, to))
+                    filter(left_open_range(lt_or_lte, to))
                   elsif gt_or_gte
-                    must(&right_open_range(gt_or_gte, from))
+                    filter(right_open_range(gt_or_gte, from))
                   end
                 end
               end
@@ -64,73 +64,79 @@ module TogoVar
           private
 
           def closed_range(gt_or_gte, from, lt_or_lte, to)
-            proc do
-              bool do
-                should do
-                  # both start and stop is in range
-                  bool do
-                    must do
-                      range :start do
-                        send(gt_or_gte.to_sym, from)
+            Elasticsearch::DSL::Search.search do
+              query do
+                bool do
+                  should do
+                    # both start and stop is in range
+                    bool do
+                      filter do
+                        range :position_start do
+                          send(gt_or_gte.to_sym, from)
+                        end
                       end
-                    end
-                    must do
-                      range :stop do
-                        send(lt_or_lte.to_sym, to)
-                      end
-                    end
-                  end
-                end
-                should do
-                  # either start or stop is in range
-                  bool do
-                    should do
-                      range :start do
-                        send(gt_or_gte.to_sym, from)
-                        send(lt_or_lte.to_sym, to)
-                      end
-                    end
-                    should do
-                      range :stop do
-                        send(gt_or_gte.to_sym, from)
-                        send(lt_or_lte.to_sym, to)
+                      filter do
+                        range :position_end do
+                          send(lt_or_lte.to_sym, to)
+                        end
                       end
                     end
                   end
-                end
-                should do
-                  # both start and stop is out of range (i.e. overlapping)
-                  bool do
-                    must do
-                      range :start do
-                        lte from
+                  should do
+                    # either start or stop is in range
+                    bool do
+                      should do
+                        range :position_start do
+                          send(gt_or_gte.to_sym, from)
+                          send(lt_or_lte.to_sym, to)
+                        end
+                      end
+                      should do
+                        range :position_end do
+                          send(gt_or_gte.to_sym, from)
+                          send(lt_or_lte.to_sym, to)
+                        end
                       end
                     end
-                    must do
-                      range :stop do
-                        gte to
+                  end
+                  should do
+                    # both start and stop is out of range (i.e. overlapping)
+                    bool do
+                      filter do
+                        range :position_start do
+                          lte from
+                        end
+                      end
+                      filter do
+                        range :position_end do
+                          gte to
+                        end
                       end
                     end
                   end
                 end
               end
-            end
+            end.to_hash[:query]
           end
 
           def left_open_range(lt_or_lte, to)
-            proc do
-              range :start do
-                send(lt_or_lte.to_sym, to)
+            Elasticsearch::DSL::Search.search do
+              query do
+                range :position_start do
+                  send(lt_or_lte.to_sym, to)
+                end
               end
-            end
+            end.to_hash[:query]
           end
 
           def right_open_range(gt_or_gte, from)
-            proc do
-              range :stop do
-                send(gt_or_gte.to_sym, from)
+            Elasticsearch::DSL::Search.search do
+              query do
+                range :position_end do
+                  send(gt_or_gte.to_sym, from)
+                end
               end
-            end
+            end.to_hash[:query]
           end
         end
       end

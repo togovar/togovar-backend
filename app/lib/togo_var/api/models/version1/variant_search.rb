@@ -7,8 +7,9 @@ module TogoVar
         class VariantSearch < Base
           ACCEPTABLE_COMPONENTS = {
             id: Id,
-            location: Location,
             type: VariantType,
+            location: Location,
+            variant: Variant,
             consequence: VariantConsequence,
             frequency: VariantFrequency,
             significance: ClinicalSignificance,
@@ -48,12 +49,14 @@ module TogoVar
               errors.add(:offset, 'must consist of at most 4 elements [chrom(index), pos, ref, alt]') if offset.size > 4
 
               case offset[0].to_s
-              when /(chr)?X/
+              when /^(chr)?X$/
                 offset[0] = 23
-              when /(chr)?Y/
+              when /^(chr)?Y$/
                 offset[0] = 24
-              when /(chr)?MT/
+              when /^(chr)?M$/
                 offset[0] = 25
+              when /^(chr)?MT$/
+                offset[0] = 26
               end
 
               begin
@@ -87,7 +90,7 @@ module TogoVar
             validate
 
             user = @options[:user]
-            source = Variant.frequency_datasets(user).map do |x|
+            source = ::Variant.frequency_datasets(user).map do |x|
               case x.to_s
               when /^bbj_riken.mpheno\d+$/
                 :"#{x}.all"
@@ -96,13 +99,11 @@ module TogoVar
               end
             end
 
-            with_condition = !significance_na_terms_exists?(@query)
-
             query = Elasticsearch::DSL::Search.search do
               query do
                 bool do
-                  must Variant.default_condition
-                  must do
+                  filter ::Variant.default_condition
+                  filter do
                     bool do
                       should do
                         nested do
@@ -112,20 +113,18 @@ module TogoVar
                           end
                         end
                       end
-                      if with_condition
-                        should do
-                          nested do
-                            path :conditions
-                            query do
-                              terms 'conditions.source': Variant.condition_datasets(user)
-                            end
+                      should do
+                        nested do
+                          path :conditions
+                          query do
+                            terms 'conditions.source': ::Variant.condition_datasets(user)
                           end
                         end
                       end
                     end
                   end
                   if (q = models.first[:query].to_hash).present?
-                    must q
+                    filter q
                   end
                 end
               end
@@ -196,29 +195,6 @@ module TogoVar
             # @return [Array] the first key-value pair of hash passed to args
             def extract_component
               @args.first&.first || []
-            end
-          end
-
-          private
-
-          def significance_na_terms_exists?(obj)
-            case obj
-            when Hash
-              if (sig = obj["significance"]).is_a?(Hash)
-                relation = sig["relation"]
-                terms = Array(sig["terms"])
-
-                if (relation == "eq" && terms.any? { |x| QueryParameters::NOT_AVAILABLE_KEYS.include?(x) }) ||
-                   (relation == "ne" && terms.none? { |x| QueryParameters::NOT_AVAILABLE_KEYS.include?(x) })
-                  return true
-                end
-              end
-
-              obj.any? { |_, v| significance_na_terms_exists?(v) }
-            when Array
-              obj.any? { |v| significance_na_terms_exists?(v) }
-            else
-              false
             end
           end
         end

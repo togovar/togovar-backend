@@ -16,7 +16,7 @@ module TogoVar
           def to_hash
             validate
 
-            terms = @terms.filter_map { |x| QueryParameters::Consequence.find(x)&.id }
+            terms = @terms.filter_map { |x| QueryParameters::Type.find(x)&.id }
 
             q = Elasticsearch::DSL::Search.search do
               query do

@@ -3,18 +3,10 @@ module ResolveHelper
     query = Elasticsearch::DSL::Search.search do
       query do
         bool do
-          must do
-            match 'chromosome': chr.to_s
-          end
-          must do
-            match 'position_start': pos.to_i
-          end
-          must do
-            match 'reference': ref.to_s
-          end
-          must do
-            match 'alternate': alt.to_s
-          end
+          filter({ match: { chromosome: chr.to_s } })
+          filter({ match: { position_start: pos.to_i } })
+          filter({ match: { reference: ref.to_s } })
+          filter({ match: { alternate: alt.to_s } })
         end
       end
     end
@@ -29,12 +21,8 @@ module ResolveHelper
           path :xref
           query do
             bool do
-              must do
-                match 'xref.source': 'dbSNP'
-              end
-              must do
-                match 'xref.id': id
-              end
+              filter({ match: { 'xref.source': 'dbSNP' } })
+              filter({ match: { 'xref.id': id } })
             end
           end
         end

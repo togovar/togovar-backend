@@ -25,12 +25,12 @@ module TogoVar
               query do
                 bool do
                   if sources.present?
-                    must do
+                    filter do
                       terms 'conditions.source': sources
                     end
                   end
 
-                  must do
+                  filter do
                     nested do
                       path 'conditions.condition'
                       query do
@@ -49,8 +49,8 @@ module TogoVar
               end
             end.to_hash[:query]
 
-            q = if q[:bool][:must].size == 1
-                  q[:bool][:must].first
+            q = if q[:bool][:filter].size == 1
+                  q[:bool][:filter].first
                 else
                   q
                 end

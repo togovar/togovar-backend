@@ -48,7 +48,7 @@ module TogoVar
                         end
                       end
                     else
-                      must do
+                      filter do
                         nested do
                           path 'conditions'
                           query do
@@ -57,7 +57,7 @@ module TogoVar
                         end
                       end
                       if sources.present?
-                        must do
+                        filter do
                           nested do
                             path 'conditions'
                             query do
@@ -75,7 +75,7 @@ module TogoVar
                 query do
                   bool do
                     if sources.present?
-                      must do
+                      filter do
                         nested do
                           path 'conditions'
                           query do
@@ -89,7 +89,7 @@ module TogoVar
                       q = Elasticsearch::DSL::Search.search do
                         query do
                           bool do
-                            must do
+                            filter do
                               nested do
                                 path 'conditions.condition'
                                 query do
@@ -103,7 +103,7 @@ module TogoVar
 
                       q = (relation == 'ne' ? negate(q) : q).to_hash[:query]
 
-                      must q
+                      filter q
                     end
                   end
                 end

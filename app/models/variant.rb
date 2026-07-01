@@ -22,7 +22,7 @@ class Variant
               []
             end
 
-        [dataset[resolve_alias && dataset[:alias].present? ? :alias : :id].to_sym].concat(g) if filter.nil? || dataset[:filter] == filter
+        [dataset[resolve_alias && dataset[:alias].present? ? :alias : :id].to_sym].concat(g) if filter.nil? || dataset[:filter].presence == filter.presence
       end.compact
     end
 
@@ -99,29 +99,22 @@ class Variant
       body = Elasticsearch::DSL::Search.search do
         query do
           bool do
-            should do
-              nested do
-                path :frequency
-                query do
-                  terms 'frequency.source': Variant.frequency_datasets(user, resolve_alias: true)
-                end
-              end
-            end
-            should do
-              nested do
-                path :conditions
-                query do
-                  terms 'conditions.source': Variant.condition_datasets(user)
-                end
-              end
-            end
-            should do
+            filter({ match: { active: true } })
+            filter do
               bool do
-                must_not do
+                should do
                   nested do
-                    path 'conditions'
+                    path :frequency
                     query do
-                      exists field: 'conditions'
+                      terms 'frequency.source': Variant.frequency_datasets(user, resolve_alias: true)
+                    end
+                  end
+                end
+                should do
+                  nested do
+                    path :conditions
+                    query do
+                      terms 'conditions.source': Variant.condition_datasets(user)
                     end
                   end
                 end
@@ -144,7 +137,7 @@ class Variant
         end
 
         aggregation :consequence do
-          terms field: 'most_severe_consequence',
+          terms field: 'vep.consequence',
                 size: cardinality[:vep_consequences]
         end
 
@@ -194,9 +187,11 @@ class Variant
       }
 
       body = if query[:query].key?(:bool)
+               must_not = (query.dig(:query, :bool, :must_not) || []).concat([q])
+
                {
                  query: {
-                   bool: query[:query][:bool].merge(must_not: (query.dig(:query, :bool, :must_not) || []).concat([q]))
+                   bool: query[:query][:bool].merge(must_not:)
                  }
                }
              else
@@ -204,7 +199,7 @@ class Variant
                  query: {
                    bool: {
                      must_not: [q],
-                     must: [query[:query]]
+                     filter: [query[:query]]
                    }
                  }
                }

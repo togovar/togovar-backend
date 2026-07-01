@@ -53,25 +53,25 @@ module API
     private
 
     def search_params
-      @search_params ||= begin
-                           query = if request.get?
-                                     params.permit :term, :quality, :limit, :offset, :debug,
-                                                   dataset: {}, frequency: {}, type: {}, significance: {}, consequence: {},
-                                                   sift: {}, polyphen: {}, alphamissense: {}, column: {}
-                                   else
-                                     if params.key?(:query)
-                                       params.permit query: {}, column: []
-                                     else
-                                       body = request.body.tap(&:rewind).read
-                                       JSON.parse(body).with_indifferent_access
-                                     end
-                                   end.to_h
+      return @search_params if @search_params
 
-                           query.delete(:offset)
-                           query.delete(:limit)
+      query = if request.get?
+                params.permit :term, :quality, :limit, :offset, :debug, column: {},
+                              dataset: {}, frequency: {}, type: {}, significance: {}, consequence: {},
+                              sscv_db: {}, sift: {}, polyphen: {}, alphamissense: {}, cadd_phred: {}
+              else
+                if params.key?(:query)
+                  params.permit query: {}, column: []
+                else
+                  body = request.body.tap(&:rewind).read
+                  JSON.parse(body).with_indifferent_access
+                end
+              end.to_h
 
-                           query.merge(body: query)
-                         end
+      query.delete(:offset)
+      query.delete(:limit)
+
+      @search_params = query.merge(body: query)
     end
 
     def output_columns
@@ -144,10 +144,10 @@ module API
           last = res.last
 
           offset = [
-            last&.dig(:_source, :chromosome, :index)&.to_i,
-            last&.dig(:_source, :vcf, :position)&.to_i,
-            last&.dig(:_source, :vcf, :reference)&.to_s,
-            last&.dig(:_source, :vcf, :alternate)&.to_s
+            last&.dig(:_source, :chromosome)&.to_i,
+            last&.dig(:_source, :position_start)&.to_i,
+            last&.dig(:_source, :reference)&.to_s,
+            last&.dig(:_source, :alternate)&.to_s
           ].compact
 
           break if offset.size != 4
@@ -238,7 +238,7 @@ module API
 
       sift = vep.map { |x| x[:sift] }.compact.min
       polyphen = vep.map { |x| x[:polyphen] }.compact.max
-      alpha_misssense = vep.map { |x| x[:alpha_misssense] }.compact.max
+      alphamissense = vep.map { |x| x[:alphamissense] }.compact.max
 
       conditions = Hash.new { |hash, key| hash[key] = Disease.find(key)&.[](:name) }
       condition = Array(result.dig(:conditions)).map do |x|
@@ -268,9 +268,9 @@ module API
       data[:tgv_id] = id if columns.include?(:id)
       data[:rs] = dbsnp.presence if columns.include?(:rs)
       if columns.include?(:position)
-        data[:chromosome] = result.dig(:chromosome, :label)
+        data[:chromosome] = result[:chromosome]
         suffix = ENV.fetch('TOGOVAR_REFERENCE', nil)
-        data["position#{"_#{suffix.downcase}" if suffix}"] = result.dig(:vcf, :position)
+        data["position#{"_#{suffix.downcase}" if suffix}"] = result[:position_start]
       end
       if columns.include?(:ref_alt)
         data[:reference] = result[:reference]
@@ -289,8 +289,8 @@ module API
         data[:polyphen2_score] = polyphen
       end
       if columns.include?(:alphamissense)
-        data[:alphamissense_pathogenicity] = alpha_misssense ? QueryParameters::AlphaMissense.find_by_value(alpha_misssense)&.label : nil
-        data[:alphamissense_score] = alpha_misssense
+        data[:alphamissense_pathogenicity] = alphamissense ? QueryParameters::AlphaMissense.find_by_value(alphamissense)&.label : nil
+        data[:alphamissense_score] = alphamissense
       end
 
       data

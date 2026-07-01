@@ -5,7 +5,9 @@ module TogoVar
     module Models
       module Version1
         class Chromosome < Base
-          ACCEPTABLE_VALUE = (('1'..'22').to_a + %w[X Y MT]).freeze
+          ACCEPTABLE_VALUE = (('1'..'22').to_a + %w[X Y M MT]).map { |x| [x, "chr#{x}"] }
+                                                              .flatten
+                                                              .freeze
 
           attr_reader :name
 
@@ -28,7 +30,7 @@ module TogoVar
           def to_hash
             validate
 
-            name = @name
+            name = @name[/^(chr)?([1-9]|1[0-9]|2[0-2]|X|Y|MT?)$/, 2]
 
             Elasticsearch::DSL::Search.search do
               query do
