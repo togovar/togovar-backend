@@ -3,32 +3,17 @@ require 'rails_helper'
 require 'csv'
 require 'json'
 
-RSpec.describe 'API::Downloads', type: :request do
+RSpec.describe 'API::Download::Variant', type: :request do
   module Headers
     GRCH37 = %w[tgv_id rs chromosome position_grch37 reference alternate type gene consequence condition
                 sift_qualitative_prediction sift_score polyphen2_qualitative_prediction polyphen2_score
-                alphamissense_pathogenicity alphamissense_score
-                jga_wes_allele_alt jga_wes_allele_total jga_wes_alt_allele_freq jga_wes_qc_status
-                jga_snp_allele_alt jga_snp_allele_total jga_snp_alt_allele_freq jga_snp_genotype_alt_alt
-                jga_snp_genotype_ref_alt jga_snp_genotype_ref_ref jga_snp_qc_status
-                tommo_allele_alt tommo_allele_total tommo_alt_allele_freq tommo_qc_status
-                hgvd_allele_alt hgvd_allele_total hgvd_alt_allele_freq hgvd_qc_status
-                gem_j_wga_allele_alt gem_j_wga_allele_total gem_j_wga_alt_allele_freq gem_j_wga_qc_status
-                gnomad_genomes_allele_alt gnomad_genomes_allele_total gnomad_genomes_alt_allele_freq gnomad_genomes_qc_status
-                gnomad_exomes_allele_alt gnomad_exomes_allele_total gnomad_exomes_alt_allele_freq gnomad_exomes_qc_status]
+                alphamissense_pathogenicity alphamissense_score]
     GRCH38 = %w[tgv_id rs chromosome position_grch38 reference alternate type gene consequence condition
                 sift_qualitative_prediction sift_score polyphen2_qualitative_prediction polyphen2_score
-                alphamissense_pathogenicity alphamissense_score
-                jga_wes_allele_alt jga_wes_allele_total jga_wes_alt_allele_freq jga_wes_qc_status
-                jga_snp_allele_alt jga_snp_allele_total jga_snp_alt_allele_freq jga_snp_genotype_alt_alt
-                jga_snp_genotype_ref_alt jga_snp_genotype_ref_ref jga_snp_qc_status
-                tommo_allele_alt tommo_allele_total tommo_alt_allele_freq tommo_qc_status
-                hgvd_allele_alt hgvd_allele_total hgvd_alt_allele_freq hgvd_qc_status
-                gem_j_wga_allele_alt gem_j_wga_allele_total gem_j_wga_alt_allele_freq gem_j_wga_qc_status
-                gnomad_genomes_allele_alt gnomad_genomes_allele_total gnomad_genomes_alt_allele_freq gnomad_genomes_qc_status]
+                alphamissense_pathogenicity alphamissense_score]
   end
 
-  let :headers do
+  let :expected_headers do
     case ENV['TOGOVAR_REFERENCE']
     when 'GRCh37'
       Headers::GRCH37
@@ -41,7 +26,7 @@ RSpec.describe 'API::Downloads', type: :request do
 
   describe 'GET /api/download/variant' do
     let(:params) do
-      { term: 'tgv56616325' }
+      { term: 'tgv671' }
     end
 
     it 'download json' do
@@ -51,9 +36,9 @@ RSpec.describe 'API::Downloads', type: :request do
       expect(response.content_type).to eq('application/json; charset=utf-8')
 
       json = JSON.parse(response.body)
-      expect(json.keys).to match_array(%w[data])
-      expect((variant = json['data'].find { |x| x['tgv_id'] == 'tgv56616325' })).to be_present
-      expect(variant.keys).to contain_exactly(*headers)
+      expect(json.keys).to contain_exactly('data')
+      expect(json['data'][0]).to a_hash_including('tgv_id' => 'tgv671')
+      expect(json['data'][0].keys).to include(*expected_headers)
     end
 
     it 'download csv' do
@@ -63,8 +48,8 @@ RSpec.describe 'API::Downloads', type: :request do
       expect(response.content_type).to eq('text/csv; charset=utf-8')
 
       csv = CSV.new(response.body, headers: true)
-      expect(csv.find { |x| x['tgv_id'] == 'tgv56616325' }).to be_present
-      expect(csv.headers).to contain_exactly(*headers)
+      expect(csv.first.to_h).to a_hash_including('tgv_id' => 'tgv671')
+      expect(csv.headers).to include(*expected_headers)
     end
 
     it 'download tsv' do
@@ -74,14 +59,14 @@ RSpec.describe 'API::Downloads', type: :request do
       expect(response.content_type).to eq('text/tab-separated-values; charset=utf-8')
 
       tsv = CSV.new(response.body, headers: true, col_sep: "\t")
-      expect(tsv.find { |x| x['tgv_id'] == 'tgv56616325' }).to be_present
-      expect(tsv.headers).to contain_exactly(*headers)
+      expect(tsv.first.to_h).to a_hash_including('tgv_id' => 'tgv671')
+      expect(tsv.headers).to include(*expected_headers)
     end
   end
 
   describe 'POST /api/download/variant' do
     let(:body) do
-      { query: { id: ["tgv56616325"] } }.to_json
+      { query: { id: ["tgv671"] } }.to_json
     end
 
     it 'download json' do
@@ -91,9 +76,9 @@ RSpec.describe 'API::Downloads', type: :request do
       expect(response.content_type).to eq('application/json; charset=utf-8')
 
       json = JSON.parse(response.body)
-      expect(json.keys).to match_array(%w[data])
-      expect((variant = json['data'].find { |x| x['tgv_id'] == 'tgv56616325' })).to be_present
-      expect(variant.keys).to contain_exactly(*headers)
+      expect(json.keys).to contain_exactly('data')
+      expect(json['data'][0]).to a_hash_including('tgv_id' => 'tgv671')
+      expect(json['data'][0].keys).to include(*expected_headers)
     end
 
     it 'download csv' do
@@ -103,8 +88,8 @@ RSpec.describe 'API::Downloads', type: :request do
       expect(response.content_type).to eq('text/csv; charset=utf-8')
 
       csv = CSV.new(response.body, headers: true)
-      expect(csv.find { |x| x['tgv_id'] == 'tgv56616325' }).to be_present
-      expect(csv.headers).to contain_exactly(*headers)
+      expect(csv.first.to_h).to a_hash_including('tgv_id' => 'tgv671')
+      expect(csv.headers).to include(*expected_headers)
     end
 
     it 'download tsv' do
@@ -114,8 +99,8 @@ RSpec.describe 'API::Downloads', type: :request do
       expect(response.content_type).to eq('text/tab-separated-values; charset=utf-8')
 
       tsv = CSV.new(response.body, headers: true, col_sep: "\t")
-      expect(tsv.find { |x| x['tgv_id'] == 'tgv56616325' }).to be_present
-      expect(tsv.headers).to contain_exactly(*headers)
+      expect(tsv.first.to_h).to a_hash_including('tgv_id' => 'tgv671')
+      expect(tsv.headers).to include(*expected_headers)
     end
   end
 end

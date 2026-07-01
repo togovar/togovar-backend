@@ -1,7 +1,7 @@
 require 'rails_helper'
 
-RSpec.describe 'Suggests', type: :request do
-  describe 'Gene suggester' do
+RSpec.describe 'Resolves', type: :request do
+  describe 'Variant resolver' do
     it 'suggests BRCA2' do
       get '/suggest', params: { term: 'BRCA2' }, headers: { Accept: 'application/json' }
 

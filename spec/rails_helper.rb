@@ -52,4 +52,13 @@ RSpec.configure do |config|
   config.filter_rails_from_backtrace!
   # arbitrary gems may also be filtered via:
   # config.filter_gems_from_backtrace("gem name")
+
+  config.before(:suite) do
+    # STDERR.puts 'Loading gene synonyms cache...'
+    # t = Benchmark.realtime { Gene.synonyms(0) }
+    # STDERR.puts "Loaded gene synonyms cache in #{t.round(2)} seconds."
+
+    # Disable cache
+    Rails.cache.write('Gene.synonym', true)
+  end
 end
