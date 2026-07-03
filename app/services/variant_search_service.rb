@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 class VariantSearchService
+  DISABLE_VALUES = %w[0 f false]
+  ENABLE_VALUES = %w[1 t true]
+
   attr_reader :options
   attr_reader :debug
 
@@ -107,14 +110,16 @@ class VariantSearchService
   def search
     hash = {}
 
-    if @params[:stat] != 0
+    if stat?
       hash.merge!(total: Variant::QueryHelper.total(@options[:user]),
                   filtered: filtered_count,
                   aggs: paging? ? {} : Variant.search(stat_query, request_cache: true).aggregations,
                   count_condition_absence: Variant::QueryHelper.count_conditions_absence(model.to_hash))
     end
 
-    hash.merge!(results: results) if @params[:data] != 0
+    if data?
+      hash.merge!(results: results)
+    end
 
     hash
   end
@@ -123,8 +128,16 @@ class VariantSearchService
     @query ||= model.to_hash.tap { |q| debug[:query] = q if @options[:debug] }
   end
 
+  def stat?
+    ENABLE_VALUES.include?(@params[:stat].to_s)
+  end
+
+  def data?
+    !DISABLE_VALUES.include?(@params[:data].to_s)
+  end
+
   def paging?
-    (offset = @params.dig(:offset)).present? && offset != 0
+    (offset = @params.dig(:offset)).present? && offset.positive?
   end
 
   def stat_query

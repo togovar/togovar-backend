@@ -33,6 +33,10 @@ class VariantSearchService
       builder.build.tap { |q| debug[:query] = q if @options[:debug] }
     end
 
+    def stat_query
+      builder.stat_query.tap { |q| debug[:stat_query] = q if @options[:debug] }
+    end
+
     def validate; end
 
     def results
@@ -65,10 +69,6 @@ class VariantSearchService
       Rails.logger.debug { 'Count condition absence' }
 
       Variant::QueryHelper.count_conditions_absence(builder.build)
-    end
-
-    def stat_query
-      builder.stat_query.tap { |q| debug[:stat_query] = q if @options[:debug] }
     end
 
     def param
@@ -135,7 +135,9 @@ class VariantSearchService
                     count_condition_absence: condition_absence_count)
       end
 
-      hash.merge!(results:) if param.data?
+      if param.data?
+        hash.merge!(results:)
+      end
 
       hash
     end
@@ -214,11 +216,8 @@ class VariantSearchService
         @debug
       end
 
-      DISABLE_VALUES = %w[0 f false]
-      ENABLE_VALUES = %w[1 t true]
-
       def stat?
-        !DISABLE_VALUES.include?(@stat.to_s)
+        ENABLE_VALUES.include?(@stat.to_s)
       end
 
       def data?
