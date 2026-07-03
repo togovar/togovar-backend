@@ -20,15 +20,11 @@ RSpec.describe 'API::Search::Variant', type: :request do
       end
 
       it 'returns expected keys' do
-        expect(json.keys).to contain_exactly('data', 'scroll', 'statistics')
+        expect(json.keys).to contain_exactly('data', 'scroll')
       end
 
       it 'returns scroll' do
         expect(json['scroll']).to_not be_empty
-      end
-
-      it 'returns statistics' do
-        expect(json['statistics']).to_not be_empty
       end
 
       it 'returns data' do
@@ -224,7 +220,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context 'Alcohol sensitivity, acute' do
-      subject { post '/api/search/variant', params:, headers: }
+      subject { post '/api/search/variant?stat=1', params:, headers: }
 
       let :params do
         {
@@ -257,7 +253,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context 'JGA-WES dataset' do
-      subject { post '/api/search/variant', params:, headers: }
+      subject { post '/api/search/variant?stat=1', params:, headers: }
 
       let :params do
         {
@@ -292,7 +288,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context 'ClinVar dataset' do
-      subject { post '/api/search/variant', params:, headers: }
+      subject { post '/api/search/variant?stat=1', params:, headers: }
 
       let :params do
         {
@@ -323,7 +319,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context 'MGeND dataset' do
-      subject { post '/api/search/variant', params:, headers: }
+      subject { post '/api/search/variant?stat=1', params:, headers: }
 
       let :params do
         {
@@ -354,7 +350,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context 'Type' do
-      subject { post '/api/search/variant', params:, headers: }
+      subject { post '/api/search/variant?stat=1', params:, headers: }
 
       let :params do
         {
@@ -384,7 +380,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context 'Consequence' do
-      subject { post '/api/search/variant', params:, headers: }
+      subject { post '/api/search/variant?stat=1', params:, headers: }
 
       let :params do
         {
@@ -414,7 +410,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context 'Significance' do
-      subject { post '/api/search/variant', params:, headers: }
+      subject { post '/api/search/variant?stat=1', params:, headers: }
 
       let :params do
         {
@@ -444,7 +440,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context 'SSCV DB' do
-      subject { post '/api/search/variant', params:, headers: }
+      subject { post '/api/search/variant?stat=1', params:, headers: }
 
       let :params do
         {
@@ -474,7 +470,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context 'AlphaMissense' do
-      subject { post '/api/search/variant', params:, headers: }
+      subject { post '/api/search/variant?stat=1', params:, headers: }
 
       let :params do
         {
@@ -505,7 +501,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context 'Without AlphaMissense' do
-      subject { post '/api/search/variant', params:, headers: }
+      subject { post '/api/search/variant?stat=1', params:, headers: }
 
       let :params do
         {
@@ -534,7 +530,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context 'SIFT' do
-      subject { post '/api/search/variant', params:, headers: }
+      subject { post '/api/search/variant?stat=1', params:, headers: }
 
       let :params do
         {
@@ -565,7 +561,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context 'Without SIFT' do
-      subject { post '/api/search/variant', params:, headers: }
+      subject { post '/api/search/variant?stat=1', params:, headers: }
 
       let :params do
         {
@@ -594,7 +590,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context 'PolyPhen' do
-      subject { post '/api/search/variant', params:, headers: }
+      subject { post '/api/search/variant?stat=1', params:, headers: }
 
       let :params do
         {
@@ -625,7 +621,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context 'Without PolyPhen' do
-      subject { post '/api/search/variant', params:, headers: }
+      subject { post '/api/search/variant?stat=1', params:, headers: }
 
       let :params do
         {
@@ -654,7 +650,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context 'CADD Phred' do
-      subject { post '/api/search/variant', params:, headers: }
+      subject { post '/api/search/variant?stat=1', params:, headers: }
 
       let :params do
         {
@@ -685,7 +681,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context 'Without CADD Phred' do
-      subject { post '/api/search/variant', params:, headers: }
+      subject { post '/api/search/variant?stat=1', params:, headers: }
 
       let :params do
         {

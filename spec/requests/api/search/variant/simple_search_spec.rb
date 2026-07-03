@@ -47,7 +47,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context 'ALDH2' do
-      subject { get '/search?term=ALDH2&stat=0', headers: { Accept: 'application/json' } }
+      subject { get '/search?term=ALDH2', headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -62,7 +62,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context 'rs671' do
-      subject { get '/search?term=rs671&stat=0', headers: { Accept: 'application/json' } }
+      subject { get '/search?term=rs671', headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -77,7 +77,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context 'tgv47264307' do
-      subject { get '/search?term=tgv47264307&stat=0', headers: { Accept: 'application/json' } }
+      subject { get '/search?term=tgv47264307', headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -92,7 +92,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context '12:111803962:G>A' do
-      subject { get '/search?term=12:111803962:G>A&stat=0', headers: { Accept: 'application/json' } }
+      subject { get '/search?term=12:111803962:G>A', headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -110,7 +110,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context '12-111803962-G-A' do
-      subject { get '/search?term=12-111803962-G-A&stat=0', headers: { Accept: 'application/json' } }
+      subject { get '/search?term=12-111803962-G-A', headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -128,7 +128,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context '12:111803962' do
-      subject { get '/search?term=12:111803962&stat=0', headers: { Accept: 'application/json' } }
+      subject { get '/search?term=12:111803962', headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -146,7 +146,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context '12:111803962-111803972' do
-      subject { get '/search?term=12:111803962-111803972&stat=0', headers: { Accept: 'application/json' } }
+      subject { get '/search?term=12:111803962-111803972', headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -164,7 +164,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context 'Alcohol sensitivity, acute' do
-      subject { get '/search?term="Alcohol sensitivity, acute"&stat=0', headers: { Accept: 'application/json' } }
+      subject { get '/search?term="Alcohol sensitivity, acute"', headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -454,6 +454,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
       let :params do
         {
           sscv_db: {
+            NA: 0,
             PEL: 1,
             CEI: 0,
             EE: 0,
@@ -462,7 +463,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
         }
       end
 
-      subject { get "/search?#{params.to_param}&stat=0", headers: { Accept: 'application/json' } }
+      subject { get "/search?#{params.to_param}", headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -482,7 +483,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
       let :params do
         {
           alphamissense: {
-            N: 0,
+            NA: 0,
             LB: 0,
             A: 0,
             LP: 1
@@ -490,7 +491,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
         }
       end
 
-      subject { get "/search?#{params.to_param}&stat=0", headers: { Accept: 'application/json' } }
+      subject { get "/search?#{params.to_param}", headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -510,14 +511,14 @@ RSpec.describe 'API::Search::Variant', type: :request do
       let :params do
         {
           sift: {
-            N: 0,
+            NA: 0,
             D: 1,
             T: 0
           }
         }
       end
 
-      subject { get "/search?#{params.to_param}&stat=0", headers: { Accept: 'application/json' } }
+      subject { get "/search?#{params.to_param}", headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -537,7 +538,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
       let :params do
         {
           polyphen: {
-            N: 0,
+            NA: 0,
             PROBD: 1,
             POSSD: 0,
             B: 0,
@@ -546,7 +547,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
         }
       end
 
-      subject { get "/search?#{params.to_param}&stat=0", headers: { Accept: 'application/json' } }
+      subject { get "/search?#{params.to_param}", headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -566,7 +567,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
       let :params do
         {
           cadd_phred: {
-            N: 0,
+            NA: 0,
             P0: 0,
             P10: 0,
             P20: 1
@@ -574,7 +575,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
         }
       end
 
-      subject { get "/search?#{params.to_param}&stat=0", headers: { Accept: 'application/json' } }
+      subject { get "/search?#{params.to_param}", headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
