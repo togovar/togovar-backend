@@ -5,8 +5,8 @@ module Vocabulary
   OBO = ::RDF::Vocabulary.new('http://purl.obolibrary.org/obo/')
   SIO = ::RDF::Vocabulary.new('http://semanticscience.org/resource/')
 
-  TGV = Class.new(RDF::StrictVocabulary('http://togovar.biosciencedbc.jp/vocabulary/')) do
-    ontology :'http://togovar.biosciencedbc.jp/vocabulary/',
+  TGV = Class.new(RDF::StrictVocabulary('http://togovar.org/vocabulary/')) do
+    ontology :'http://togovar.org/vocabulary/',
              'dc11:title': 'A vocabulary used by TogoVar'.freeze,
              type: 'owl:Ontology'.freeze
 
