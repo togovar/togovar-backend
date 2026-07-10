@@ -61,6 +61,8 @@ module TogoVar
             debug.add class: self.class.name,
                       action: :initialize,
                       args: args
+
+            @options = {}
           end
 
           # All subclass must implement this method

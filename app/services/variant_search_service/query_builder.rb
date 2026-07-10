@@ -86,6 +86,35 @@ class VariantSearchService
       non_filter_datasets = Variant.frequency_datasets(user, filter: false)
 
       q1 = if frequency_datasets.present?
+             sub = Elasticsearch::DSL::Search.search do
+               query do
+                 bool do
+                   if filter_datasets.present?
+                     should do
+                       nested do
+                         path :frequency
+                         query do
+                           bool do
+                             filter do
+                               terms 'frequency.source': Variant.resolve_alias(user, filter_datasets)
+                             end
+                             filter do
+                               term 'frequency.filter': 'PASS'
+                             end
+                           end
+                         end
+                       end
+                     end
+                   end
+                   if non_filter_datasets.present?
+                     should do
+                       terms 'frequency.source': Variant.resolve_alias(user, non_filter_datasets)
+                     end
+                   end
+                 end
+               end
+             end
+
              Elasticsearch::DSL::Search.search do
                query do
                  bool do
@@ -95,37 +124,12 @@ class VariantSearchService
                          nested do
                            path :frequency
                            query do
-                             terms 'frequency.source': frequency_datasets
+                             terms 'frequency.source': Variant.resolve_alias(user, frequency_datasets)
                            end
                          end
                        end
                        if filter && (filter_datasets.present? || non_filter_datasets.present?)
-                         filter do
-                           bool do
-                             if filter_datasets.present?
-                               should do
-                                 nested do
-                                   path :frequency
-                                   query do
-                                     bool do
-                                       filter do
-                                         terms 'frequency.source': Variant.resolve_alias(user, filter_datasets)
-                                       end
-                                       filter do
-                                         term 'frequency.filter': 'PASS'
-                                       end
-                                     end
-                                   end
-                                 end
-                               end
-                             end
-                             if non_filter_datasets.present?
-                               should do
-                                 terms 'frequency.source': Variant.resolve_alias(user, non_filter_datasets)
-                               end
-                             end
-                           end
-                         end
+                         filter((v = sub.to_hash.dig(:query, :bool, :should)).size == 1 ? v[0] : sub.to_hash[:query])
                        end
                      end
                    end
@@ -544,6 +548,7 @@ class VariantSearchService
         query[:from] = @from unless @from.zero?
       end
       query[:sort] = %w[chromosome_index position_start reference alternate] if @sort
+      query[:track_total_hits] = false
 
       query
     end

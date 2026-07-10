@@ -24,7 +24,7 @@ class VariantSearchService
 
     # @return [Hash]
     def execute
-      gene_order = (gene = Gene.exact_match(param.term)) ? [gene[:hgnc_id]] : []
+      gene_order = param.term.present? && (gene = Gene.exact_match(param.term)) ? [gene[:hgnc_id]] : []
 
       ResponseFormatter.new(param, search, @error, @warning, @notice, user: @options[:user], gene_order:).to_hash
     end
@@ -202,7 +202,7 @@ class VariantSearchService
         @offset = params[:offset].is_a?(Array) ? params[:offset] : between(params.fetch(:offset, '0').to_i, 0, 10_000)
         @limit = between(params.fetch(:limit, '100').to_i, 0, 100)
 
-        @stat = params.fetch(:stat, '1')
+        @stat = params.fetch(:stat, '0')
         @data = params.fetch(:data, '1')
         @debug = params.key?(:debug)
         @options = options

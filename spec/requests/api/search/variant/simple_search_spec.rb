@@ -13,15 +13,11 @@ RSpec.describe 'API::Search::Variant', type: :request do
       end
 
       it 'returns expected keys' do
-        expect(json.keys).to contain_exactly('data', 'scroll', 'statistics')
+        expect(json.keys).to contain_exactly('data', 'scroll')
       end
 
       it 'returns scroll' do
         expect(json['scroll']).to_not be_empty
-      end
-
-      it 'returns statistics' do
-        expect(json['statistics']).to_not be_empty
       end
 
       it 'returns data' do
@@ -29,7 +25,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
       end
     end
 
-    context 'statistics' do
+    context 'enable statistics' do
       subject { get '/search?stat=1&data=0', headers: { Accept: 'application/json' } }
 
       let :json do
@@ -43,6 +39,11 @@ RSpec.describe 'API::Search::Variant', type: :request do
         expect(json.keys).to contain_exactly('scroll', 'statistics')
         expect(json['scroll'].keys).to contain_exactly('limit', 'offset', 'max_rows')
         expect(json['statistics'].keys).to contain_exactly('total', 'filtered', 'dataset', 'type', 'significance', 'consequence')
+      end
+
+      it 'returns number that is greater than 0' do
+        expect(json.dig('statistics', 'total')).to be > 0
+        expect(json.dig('statistics', 'filtered')).to be > 0
       end
     end
 
@@ -128,7 +129,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context '12:111803962' do
-      subject { get '/search?term=12:111803962', headers: { Accept: 'application/json' } }
+      subject { get '/search?term=12:111803962&stat=1', headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -138,6 +139,9 @@ RSpec.describe 'API::Search::Variant', type: :request do
       end
 
       it 'returns results at 111803962 in chr12' do
+        expect(json.dig('statistics', 'total')).to be > 0
+        expect(json.dig('statistics', 'filtered')).to be > 0
+
         json['data'].each do |variant|
           expect(variant['chromosome']).to eq('12')
           expect(variant['position']).to eq(111803962)
@@ -146,7 +150,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context '12:111803962-111803972' do
-      subject { get '/search?term=12:111803962-111803972', headers: { Accept: 'application/json' } }
+      subject { get '/search?term=12:111803962-111803972&stat=1', headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -156,6 +160,9 @@ RSpec.describe 'API::Search::Variant', type: :request do
       end
 
       it 'returns results between 111803962 and 111803972 in chr12' do
+        expect(json.dig('statistics', 'total')).to be > 0
+        expect(json.dig('statistics', 'filtered')).to be > 0
+
         json['data'].each do |variant|
           expect(variant['chromosome']).to eq('12')
           expect(variant['position']).to be_between(111803962, 111803972).inclusive
@@ -164,7 +171,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
     end
 
     context 'Alcohol sensitivity, acute' do
-      subject { get '/search?term="Alcohol sensitivity, acute"', headers: { Accept: 'application/json' } }
+      subject { get '/search?term="Alcohol sensitivity, acute"&stat=1', headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -174,6 +181,9 @@ RSpec.describe 'API::Search::Variant', type: :request do
       end
 
       it 'returns variants that have condition annotation "Alcohol sensitivity, acute"' do
+        expect(json.dig('statistics', 'total')).to be > 0
+        expect(json.dig('statistics', 'filtered')).to be > 0
+
         json['data'].each do |variant|
           conditions = variant['significance'].flat_map { |x| x['conditions'] }
           expect(conditions).to include(a_hash_including('name' => 'Alcohol sensitivity, acute'))
@@ -203,7 +213,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
         }
       end
 
-      subject { get "/search?#{params.to_param}", headers: { Accept: 'application/json' } }
+      subject { get "/search?#{params.to_param}&stat=1", headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -213,10 +223,96 @@ RSpec.describe 'API::Search::Variant', type: :request do
       end
 
       it 'returns variants that have JGA-WES frequency' do
+        expect(json.dig('statistics', 'total')).to be > 0
+        expect(json.dig('statistics', 'filtered')).to be > 0
         expect(json.dig('statistics', 'dataset', 'jga_wes')).to be > 0
 
         json['data'].each do |variant|
           expect(variant['frequencies']).to include(a_hash_including('source' => 'jga_wes'))
+        end
+      end
+    end
+
+    context 'BBJ 1K dataset' do
+      let :params do
+        {
+          dataset: {
+            bbj1k: 1,
+            bbj2k: 0,
+            gem_j_wga: 0,
+            jga_wes: 0,
+            jga_wgs: 0,
+            jga_snp: 0,
+            tommo: 0,
+            ncbn: 0,
+            gnomad_genomes: 0,
+            gnomad_exomes: 0,
+            clinvar: 0,
+            mgend: 0,
+            jogo: 0,
+            tommo_jsv1: 0
+          }
+        }
+      end
+
+      subject { get "/search?#{params.to_param}&stat=1", headers: { Accept: 'application/json' } }
+
+      let :json do
+        expect(subject).to be 200
+        expect(response.content_type).to eq('application/json; charset=utf-8')
+
+        JSON.parse(response.body)
+      end
+
+      it 'returns variants that have BBJ 1K frequency' do
+        expect(json.dig('statistics', 'total')).to be > 0
+        expect(json.dig('statistics', 'filtered')).to be > 0
+        expect(json.dig('statistics', 'dataset', 'bbj1k')).to be > 0
+
+        json['data'].each do |variant|
+          expect(variant['frequencies']).to include(a_hash_including('source' => 'bbj1k'))
+        end
+      end
+    end
+
+    context 'BBJ 2K dataset' do
+      let :params do
+        {
+          dataset: {
+            bbj1k: 0,
+            bbj2k: 1,
+            gem_j_wga: 0,
+            jga_wes: 0,
+            jga_wgs: 0,
+            jga_snp: 0,
+            tommo: 0,
+            ncbn: 0,
+            gnomad_genomes: 0,
+            gnomad_exomes: 0,
+            clinvar: 0,
+            mgend: 0,
+            jogo: 0,
+            tommo_jsv1: 0
+          }
+        }
+      end
+
+      subject { get "/search?#{params.to_param}&stat=1", headers: { Accept: 'application/json' } }
+
+      let :json do
+        expect(subject).to be 200
+        expect(response.content_type).to eq('application/json; charset=utf-8')
+
+        JSON.parse(response.body)
+      end
+
+      it 'returns variants that have BBJ 2K frequency' do
+        expect(json.dig('statistics', 'total')).to be > 0
+        expect(json.dig('statistics', 'filtered')).to be > 0
+        expect(json.dig('statistics', 'dataset', 'bbj2k')).to be > 0
+
+        json['data'].each do |variant|
+          expect(variant['frequencies']).to include(a_hash_including('source' => 'bbj2k'))
         end
       end
     end
@@ -243,7 +339,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
         }
       end
 
-      subject { get "/search?#{params.to_param}", headers: { Accept: 'application/json' } }
+      subject { get "/search?#{params.to_param}&stat=1", headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -253,6 +349,8 @@ RSpec.describe 'API::Search::Variant', type: :request do
       end
 
       it 'returns variants that have ClinVar condition' do
+        expect(json.dig('statistics', 'total')).to be > 0
+        expect(json.dig('statistics', 'filtered')).to be > 0
         expect(json.dig('statistics', 'dataset', 'clinvar')).to be > 0
 
         json['data'].each do |variant|
@@ -283,7 +381,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
         }
       end
 
-      subject { get "/search?#{params.to_param}", headers: { Accept: 'application/json' } }
+      subject { get "/search?#{params.to_param}&stat=1", headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -293,6 +391,8 @@ RSpec.describe 'API::Search::Variant', type: :request do
       end
 
       it 'returns variants that have MGeND condition' do
+        expect(json.dig('statistics', 'total')).to be > 0
+        expect(json.dig('statistics', 'filtered')).to be > 0
         expect(json.dig('statistics', 'dataset', 'mgend')).to be > 0
 
         json['data'].each do |variant|
@@ -314,7 +414,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
         }
       end
 
-      subject { get "/search?#{params.to_param}", headers: { Accept: 'application/json' } }
+      subject { get "/search?#{params.to_param}&stat=1", headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -324,6 +424,8 @@ RSpec.describe 'API::Search::Variant', type: :request do
       end
 
       it 'returns variants whose type is SO_1000032' do
+        expect(json.dig('statistics', 'total')).to be > 0
+        expect(json.dig('statistics', 'filtered')).to be > 0
         expect(json.dig('statistics', 'type', 'SO_1000032')).to be > 0
 
         json['data'].each do |variant|
@@ -381,7 +483,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
         }
       end
 
-      subject { get "/search?#{params.to_param}", headers: { Accept: 'application/json' } }
+      subject { get "/search?#{params.to_param}&stat=1", headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -391,6 +493,8 @@ RSpec.describe 'API::Search::Variant', type: :request do
       end
 
       it 'returns variants that have SO_0001583 in transcripts.consequence' do
+        expect(json.dig('statistics', 'total')).to be > 0
+        expect(json.dig('statistics', 'filtered')).to be > 0
         expect(json.dig('statistics', 'consequence', 'SO_0001583')).to be > 0
 
         json['data'].each do |variant|
@@ -432,7 +536,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
         }
       end
 
-      subject { get "/search?#{params.to_param}", headers: { Accept: 'application/json' } }
+      subject { get "/search?#{params.to_param}&stat=1", headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -442,6 +546,8 @@ RSpec.describe 'API::Search::Variant', type: :request do
       end
 
       it 'returns variants that have SO_0001583 in transcripts.consequence' do
+        expect(json.dig('statistics', 'total')).to be > 0
+        expect(json.dig('statistics', 'filtered')).to be > 0
         expect(json.dig('statistics', 'significance', 'P')).to be > 0
 
         json['data'].each do |variant|
@@ -463,7 +569,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
         }
       end
 
-      subject { get "/search?#{params.to_param}", headers: { Accept: 'application/json' } }
+      subject { get "/search?#{params.to_param}&stat=1", headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -473,6 +579,9 @@ RSpec.describe 'API::Search::Variant', type: :request do
       end
 
       it 'returns variants that have predicted_splicing_type "Partial exon loss" in sscv_db' do
+        expect(json.dig('statistics', 'total')).to be > 0
+        expect(json.dig('statistics', 'filtered')).to be > 0
+
         json['data'].each do |variant|
           expect(variant['sscv_db']).to include(a_hash_including('predicted_splicing_type' => 'Partial exon loss'))
         end
@@ -491,7 +600,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
         }
       end
 
-      subject { get "/search?#{params.to_param}", headers: { Accept: 'application/json' } }
+      subject { get "/search?#{params.to_param}&stat=1", headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -501,6 +610,9 @@ RSpec.describe 'API::Search::Variant', type: :request do
       end
 
       it 'returns variants that have a value great than 0.564 for alphamissense' do
+        expect(json.dig('statistics', 'total')).to be > 0
+        expect(json.dig('statistics', 'filtered')).to be > 0
+
         json['data'].each do |variant|
           expect(variant['alphamissense']).to be > 0.564
         end
@@ -518,7 +630,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
         }
       end
 
-      subject { get "/search?#{params.to_param}", headers: { Accept: 'application/json' } }
+      subject { get "/search?#{params.to_param}&stat=1", headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -528,6 +640,9 @@ RSpec.describe 'API::Search::Variant', type: :request do
       end
 
       it 'returns variants that have a value less than 0.05 for sift' do
+        expect(json.dig('statistics', 'total')).to be > 0
+        expect(json.dig('statistics', 'filtered')).to be > 0
+
         json['data'].each do |variant|
           expect(variant['sift']).to be < 0.05
         end
@@ -547,7 +662,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
         }
       end
 
-      subject { get "/search?#{params.to_param}", headers: { Accept: 'application/json' } }
+      subject { get "/search?#{params.to_param}&stat=1", headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -557,6 +672,9 @@ RSpec.describe 'API::Search::Variant', type: :request do
       end
 
       it 'returns variants that have a value greater than 0.908 for polyphen' do
+        expect(json.dig('statistics', 'total')).to be > 0
+        expect(json.dig('statistics', 'filtered')).to be > 0
+
         json['data'].each do |variant|
           expect(variant['polyphen']).to be > 0.908
         end
@@ -575,7 +693,7 @@ RSpec.describe 'API::Search::Variant', type: :request do
         }
       end
 
-      subject { get "/search?#{params.to_param}", headers: { Accept: 'application/json' } }
+      subject { get "/search?#{params.to_param}&stat=1", headers: { Accept: 'application/json' } }
 
       let :json do
         expect(subject).to be 200
@@ -585,6 +703,9 @@ RSpec.describe 'API::Search::Variant', type: :request do
       end
 
       it 'returns variants that have a value greater than and equal to 20 for cadd_phred' do
+        expect(json.dig('statistics', 'total')).to be > 0
+        expect(json.dig('statistics', 'filtered')).to be > 0
+
         json['data'].each do |variant|
           expect(variant['cadd_phred']).to be >= 20
         end

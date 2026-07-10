@@ -170,7 +170,10 @@ module TogoVar
                             key, value = extract_component
                             return [] unless key.present? && (klass = acceptable_components[key.to_sym])
 
-                            [{ key.to_sym => klass < Bool ? klass.new(*value) : klass.new(value) }]
+                            obj = klass < Bool ? klass.new(*value) : klass.new(value)
+                            obj.options[:user] = @options[:user]
+
+                            [{ key.to_sym => obj }]
                           end
             end
 

@@ -125,7 +125,14 @@ class VariantSearchService
   end
 
   def query
-    @query ||= model.to_hash.tap { |q| debug[:query] = q if @options[:debug] }
+    @query ||= begin
+                 query = model.to_hash
+                 query.update(track_total_hits: false)
+
+                 debug[:query] = query if @options[:debug]
+
+                 query
+               end
   end
 
   def stat?

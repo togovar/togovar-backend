@@ -32,6 +32,9 @@ module TogoVar
             name = @name
             name = "#{name}.all" if name.match?(/^bbj_riken.mpheno\d+$/)
 
+            user = @options[:user]
+            name = ::Variant.resolve_alias(user, [name])[0]
+
             Elasticsearch::DSL::Search.search do
               query do
                 match 'frequency.source': name
