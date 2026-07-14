@@ -137,39 +137,24 @@ class Variant
         end
 
         aggregation :consequence do
-          terms field: 'vep.consequence',
+          terms field: 'facet_consequence',
                 size: cardinality[:vep_consequences]
         end
 
-        aggregation :conditions do
-          nested do
-            path 'conditions'
-            aggregation :source do
-              terms field: 'conditions.source',
-                    size: cardinality[:condition_sources]
-            end
-
-            aggregation :condition do
-              nested do
-                path 'conditions.condition'
-                aggregation :classification do
-                  terms field: 'conditions.condition.classification',
-                        size: cardinality[:condition_classifications]
-                end
-              end
-            end
-          end
+        aggregation :condition_source do
+          terms field: 'facet_condition_source',
+                size: cardinality[:condition_sources]
         end
 
-        aggregation :frequency do
-          nested do
-            path :frequency
-            aggregation :source do
-              terms field: 'frequency.source',
-                    size: cardinality[:frequency_sources],
-                    include: Variant.frequency_datasets(user, resolve_alias: true)
-            end
-          end
+        aggregation :condition_classification do
+          terms field: 'facet_condition_classification',
+                size: cardinality[:condition_classifications]
+        end
+
+        aggregation :frequency_source do
+          terms field: 'facet_frequency_source',
+                size: cardinality[:frequency_sources],
+                include: Variant.frequency_datasets(user, resolve_alias: true)
         end
       end
     end

@@ -63,7 +63,7 @@ class VariantSearchService
 
     def dataset(json)
       aggs = @result[:aggs]
-      datasets = Array(aggs.dig(:frequency, :source, :buckets)).concat(Array(aggs.dig(:conditions, :source, :buckets)))
+      datasets = Array(aggs.dig(:frequency_source, :buckets)).concat(Array(aggs.dig(:condition_source, :buckets)))
 
       # Ensure dataset key
       (all = Variant.all_datasets(@options[:user])).each do |x|
@@ -106,7 +106,7 @@ class VariantSearchService
     end
 
     def significance(json)
-      significances = Array(@result[:aggs].dig(:conditions, :condition, :classification, :buckets))
+      significances = Array(@result[:aggs].dig(:condition_classification, :buckets))
 
       # Ensure significance key
       QueryParameters::ClinicalSignificance.all.each do |c|
