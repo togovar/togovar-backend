@@ -800,7 +800,7 @@ shared:
         - <<: *jga_snp
         - id: tommo
           label: ToMMo 8.3KJPN
-          filter: false
+          filter: true
           api:
             description: "[ToMMo 8.3KJPN Allele Frequency Panel](https://jmorp.megabank.tohoku.ac.jp/downloads/tommo-8.3kjpn-20200831-af_snvindelall)"
           download:
