@@ -65,12 +65,10 @@ class Variant
     end
 
     def resolve_alias(user, datasets)
-      accessible = accessible_datasets(user)[:frequency]
+      aliases = aliases(user)
 
-      datasets.filter_map do |dataset|
-        next unless (conf = accessible.find { |x| x[:id] == dataset.to_s })
-
-        (conf[:alias].present? ? conf[:alias] : dataset).to_sym
+      datasets.map do |dataset|
+        (aliases.find { |_, v| v.include?(dataset.to_s) }&.first || dataset).to_sym
       end
     end
 
