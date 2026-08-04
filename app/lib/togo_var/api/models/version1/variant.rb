@@ -5,13 +5,14 @@ module TogoVar
     module Models
       module Version1
         class Variant < Base
+          include TogoVar::Helper
+
           attr_reader :chromosome
           attr_reader :position
           attr_reader :reference
           attr_reader :alternate
 
           validates :position, numericality: true
-          validates :reference, :alternate, length: { maximum: 50 }
           validate do
             next if reference.match?(/^[ATCGN]+$/)
 
@@ -57,8 +58,16 @@ module TogoVar
                 bool do
                   filter model[:chromosome]
                   filter({ match: { position_start: } })
-                  filter({ match: { reference: } })
-                  filter({ match: { alternate: } })
+                  if reference.length > 50
+                    filter({ match: { reference_hash: hashing(reference) } })
+                  else
+                    filter({ match: { reference: } })
+                  end
+                  if alternate.length > 50
+                    filter({ match: { alternate_hash: hashing(alternate) } })
+                  else
+                    filter({ match: { alternate: } })
+                  end
                 end
               end
             end.to_hash[:query]

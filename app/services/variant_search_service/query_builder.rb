@@ -648,8 +648,22 @@ class VariantSearchService
           bool do
             filter({ match: { chromosome: chr } })
             filter(position)
-            filter({ match: { reference: ref } }) if ref.present?
-            filter({ match: { alternate: alt } }) if alt.present?
+
+            if ref.present?
+              if ref.length > 50
+                filter({ match: { reference_hash: hashing(ref) } })
+              else
+                filter({ match: { reference: ref } })
+              end
+            end
+
+            if alt.present? && alt.length > 50
+              if alt.length > 50
+                filter({ match: { alternate_hash: hashing(alt) } })
+              else
+                filter({ match: { alternate:  } })
+              end
+            end
           end
         end
       end

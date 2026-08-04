@@ -6,4 +6,5 @@ module TogoVar
   class Error < StandardError; end
 end
 
+require 'togo_var/helper'
 require 'togo_var/api'
