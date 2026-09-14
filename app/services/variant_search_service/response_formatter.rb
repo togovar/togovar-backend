@@ -367,6 +367,19 @@ class VariantSearchService
           x[:source] = m[1]
         end
 
+        # TODO: remove on 2026.2 or 2027.1
+        if x[:source] == 'jogo'
+          if %w[X Y].include?(variant[:chromosome])
+            %i[aac arc aoc rrc ooc roc].each do |key|
+              x.delete(key)
+            end
+          end
+
+          %i[hac hrc hoc].each do |key|
+            x.delete(key)
+          end
+        end
+
         next unless accessible_datasets.include?(x[:source].to_sym)
 
         if x[:af].blank? && x[:ac].present? && x[:an].present?
