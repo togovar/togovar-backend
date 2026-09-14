@@ -657,11 +657,11 @@ class VariantSearchService
               end
             end
 
-            if alt.present? && alt.length > 50
+            if alt.present?
               if alt.length > 50
                 filter({ match: { alternate_hash: hashing(alt) } })
               else
-                filter({ match: { alternate:  } })
+                filter({ match: { alternate: alt } })
               end
             end
           end

@@ -113,7 +113,6 @@ class ResolveController < ApplicationController
       end
     when /^(chr)?(?<chr>[1-9]|1[0-9]|2[0-2]|X|Y|MT?)-(?<pos>\d+)-(?<ref>.+)-(?<alt>.+)/
       chr = $LAST_MATCH_INFO['chr']
-      chr = 'MT' if chr == 'M'
       pos = $LAST_MATCH_INFO['pos']
       ref = $LAST_MATCH_INFO['ref']
       alt = $LAST_MATCH_INFO['alt']
