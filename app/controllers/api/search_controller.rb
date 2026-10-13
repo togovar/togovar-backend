@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'open3'
+
 module API
   class SearchController < ApplicationController
     include Executable
@@ -31,6 +33,50 @@ module API
 
     def disease
       search_action disease_params.to_h, SearchDisease
+    end
+
+    def gene_annotation
+      params = gene_annotation_params
+      query = params[:query] || params[:q]
+      return render plain: 'Query parameter is required', status: :bad_request unless query.present?
+
+      chr, region = query.split(':')
+      chr.delete_prefix!('chr')
+      start, stop = region&.split('-')
+      return render plain: 'Invalid query format', status: :bad_request unless chr.present? && start.present? && stop.present?
+
+      response.headers['Content-Type'] = 'text/tab-separated-values; charset=utf-8'
+      response.headers["Cache-Control"] = "no-cache"
+      response.headers["X-Accel-Buffering"] = "no"
+      response.headers["Last-Modified"] = Time.now.httpdate
+
+      base = ENV.fetch('TOGOVAR_GENE_ANNOTATION_BASE')
+      file = "chr#{chr}_molecular_annotation.tsv.gz"
+      command = %W[tabix #{base}/#{file} #{chr}:#{start}-#{stop}]
+
+      Open3.popen3(*command) do |stdin, stdout, stderr, wait_thr|
+        stdin.close
+
+        stderr_thread = Thread.new do
+          stderr.each_line do |line|
+            Rails.logger.error(line.chomp)
+          end
+        end
+
+        stdout.each_line do |line|
+          response.stream.write(line)
+        end
+
+        stderr_thread.join
+
+        status = wait_thr.value
+
+        Rails.logger.warn("Command failed: #{status.exitstatus}") unless status.success?
+      end
+    rescue ActionController::Live::ClientDisconnected, IOError
+      Rails.logger.info("Client disconnected")
+    ensure
+      response.stream.close
     end
 
     private
@@ -95,9 +141,13 @@ module API
       params.permit(:pretty, :term, body: {})
     end
 
+    def gene_annotation_params
+      params.permit(:query, :q)
+    end
+
     def search_action(params, action)
       respond_to do |format|
-        format.html { render plain: 'Not implemented', content_type: 'text/plain', status: :not_implemented }
+        format.html { render plain: 'Add an accept header "application/json" to the request.', content_type: 'text/plain', status: :bad_request }
         format.json do
           renderer = params.key?(:pretty) ? :pretty_json : :json
 

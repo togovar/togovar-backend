@@ -15,6 +15,7 @@ Rails.application.routes.draw do
     match 'search/disease', via: %w[get post]
     match 'inspect/disease', via: %w[get post]
     match 'download/variant', via: %w[get post]
+    get 'search/gene_annotation'
   end
 
   get 'auth/status', to: 'auth#status'
