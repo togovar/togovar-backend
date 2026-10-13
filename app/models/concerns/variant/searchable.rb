@@ -248,6 +248,7 @@ class Variant
         position_end
         reference
         alternate
+        most_severe_consequence
         xref.source
         xref.id
         conditions.source
@@ -286,6 +287,7 @@ class Variant
               position_end: fields['position_end']&.first,
               reference: fields['reference']&.first,
               alternate: fields['alternate']&.first,
+              most_severe_consequence: fields['most_severe_consequence']&.first,
               xref: Array(fields['xref']).map do |xref|
                 {
                   id: xref['id'].first,
