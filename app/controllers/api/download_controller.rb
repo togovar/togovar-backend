@@ -16,8 +16,8 @@ module API
     def variant
       respond_to do |format|
         format.html do
-          errors = ["Add an accept header 'application/json', 'text/csv' or 'text/plain' to the request."]
-          render json: { errors: errors }, status: :not_implemented
+          errors = ['Add an accept header "application/json", "text/csv" or "text/plain" to the request.']
+          render json: { errors: errors }, status: :bad_request
         end
 
         format.json do

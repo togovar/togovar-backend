@@ -10,7 +10,7 @@ module API
       params = disease_params.to_h
 
       respond_to do |format|
-        format.html { render plain: 'Not implemented', content_type: 'text/plain', status: :not_implemented }
+        format.html { render plain: 'Add an accept header "application/json" to the request.', content_type: 'text/plain', status: :bad_request }
         format.json do
           renderer = params.key?(:pretty) ? :pretty_json : :json
 
