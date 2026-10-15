@@ -125,7 +125,7 @@ class Gene
           end
         end
 
-        Rails.logger.debug('Generate synonyms_cache') { "#{t} s" }
+        Rails.logger.debug('Generate synonyms_cache') { "#{t.round(2)} s" }
       end
 
       # @param [String] keyword

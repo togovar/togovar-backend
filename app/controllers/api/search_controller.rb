@@ -1,11 +1,13 @@
 # frozen_string_literal: true
 
+require 'benchmark'
 require 'open3'
 
 module API
   class SearchController < ApplicationController
-    include Executable
+    include ActionController::Live
     include AuthHelper
+    include Executable
 
     before_action :authenticate_user, only: %i[variant search_variant]
 
@@ -75,6 +77,50 @@ module API
       end
     rescue ActionController::Live::ClientDisconnected, IOError
       Rails.logger.info("Client disconnected")
+    ensure
+      response.stream.close
+    end
+
+    def export
+      chromosome = params[:chromosome] || raise('Missing chromosome parameter')
+
+      response.headers['Content-Type'] = 'text/plain; charset=utf-8'
+
+      all = Variant.count(body: { query: { match: { chromosome: } } })
+      processed = 0
+
+      search_after = nil
+
+      loop do
+        t = Benchmark.realtime do
+          service = VariantExportService.new(chromosome:, search_after:)
+
+          result, status = execute(service)
+
+          raise "Variant export failed" unless status == :ok
+
+          if result['data'].empty?
+            Rails.logger.debug { "Variant search returned empty result." }
+            break
+          end
+
+          result['data'].each do |variant|
+            response.stream.write("chr#{variant['chromosome']}\t#{variant['position']}\t#{variant.to_json}\n")
+          end
+
+          search_after = result['data'].last
+
+          processed += result['data'].size
+        end
+
+        break if t.nil?
+
+        Rails.logger.debug do
+          "Processed #{ActiveSupport::NumberHelper.number_to_delimited(processed)}/"\
+            "#{ActiveSupport::NumberHelper.number_to_delimited(all)} "\
+            "(#{ActiveSupport::Duration.build(t.round(2)).inspect})"
+        end
+      end
     ensure
       response.stream.close
     end
