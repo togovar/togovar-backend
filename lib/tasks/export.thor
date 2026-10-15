@@ -1,5 +1,6 @@
 require_relative '../../config/application'
 require 'thor'
+require 'zlib'
 
 Rails.application.initialize! unless Rails.application.initialized?
 
@@ -35,15 +36,21 @@ module Tasks
         status, _headers, body = API::SearchController.action(:export).call(env)
 
         begin
+          output = File.join(options[:output_dir], "chr#{chr}_variant.jsonl.tsv.gz")
+          tmp = "#{output}.part"
+
           raise "HTTP Error: #{status}" unless status.between?(200, 299)
 
-          File.open(File.join(options[:output_dir], "chr#{chr}_variant.jsonl.tsv.gz"), 'wb') do |file|
+          Zlib::GzipWriter.open(tmp, Zlib::BEST_COMPRESSION) do |gzip|
             body.each do |chunk|
-              file.write(chunk)
+              gzip.write(chunk)
             end
           end
+
+          File.rename(tmp, output)
         ensure
           body.close if body.respond_to?(:close)
+          File.delete(tmp) if File.exist?(tmp)
         end
       end
     end

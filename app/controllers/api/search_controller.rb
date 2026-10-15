@@ -91,35 +91,42 @@ module API
 
       search_after = nil
 
-      loop do
-        t = Benchmark.realtime do
-          service = VariantExportService.new(chromosome:, search_after:)
+      t1 = Benchmark.realtime do
+        loop do
+          t2 = Benchmark.realtime do
+            service = VariantExportService.new(chromosome:, search_after:)
 
-          result, status = execute(service)
+            result, status = execute(service)
 
-          raise "Variant export failed" unless status == :ok
+            raise "Variant export failed" unless status == :ok
 
-          if result['data'].empty?
-            Rails.logger.debug { "Variant search returned empty result." }
-            break
+            if result['data'].empty?
+              Rails.logger.debug { "Variant search returned empty result." }
+              break
+            end
+
+            result['data'].each do |variant|
+              response.stream.write("chr#{variant['chromosome']}\t#{variant['position']}\t#{variant.to_json}\n")
+            end
+
+            search_after = result['data'].last
+
+            processed += result['data'].size
           end
 
-          result['data'].each do |variant|
-            response.stream.write("chr#{variant['chromosome']}\t#{variant['position']}\t#{variant.to_json}\n")
+          break if t2.nil?
+
+          Rails.logger.debug do
+            "Processed chr#{chromosome} #{ActiveSupport::NumberHelper.number_to_delimited(processed)}/"\
+              "#{ActiveSupport::NumberHelper.number_to_delimited(all)} "\
+              "(#{ActiveSupport::Duration.build(t2.round(2)).inspect})"
           end
-
-          search_after = result['data'].last
-
-          processed += result['data'].size
         end
+      end
 
-        break if t.nil?
-
-        Rails.logger.debug do
-          "Processed #{ActiveSupport::NumberHelper.number_to_delimited(processed)}/"\
-            "#{ActiveSupport::NumberHelper.number_to_delimited(all)} "\
-            "(#{ActiveSupport::Duration.build(t.round(2)).inspect})"
-        end
+      Rails.logger.info do
+        "Processed chr#{chromosome} #{ActiveSupport::NumberHelper.number_to_delimited(all)} "\
+          "(#{ActiveSupport::Duration.build(t1.round(2)).inspect})"
       end
     ensure
       response.stream.close
